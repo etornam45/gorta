@@ -1,4 +1,4 @@
-`[Gorta]` is a minimal, adapter-based authentication library for Go.
+**`[Gorta]`** is a minimal, adapter-based authentication library for Go.
 
 #### Manifesto
 Gorta handles the hard parts of auth (password hashing, session management,
@@ -7,6 +7,10 @@ entirely to you. You implement the [Adapter] interface against your own
 database, ORM, and schema. Gorta never touches your database directly.
 
 #### Quick Start
+
+```go	
+import github.com/etornam45/gorta
+```
 
 ```go
 a, err := gorta.New(myAdapter, gorta.Config{
@@ -50,8 +54,29 @@ auth, err := gorta.New(sqladapter.New(db), config, mailer)
 ```
 
 
-### Errors
+#### Auth Methods
 
-Gorta defines sentinel errors in errors.go. Your Adapter must return
-these (e.g. [ErrUserNotFound]) rather than raw database errors, so
-Gorta can map them to the correct HTTP responses.
+- [x] Email Passord
+- [ ] Social Login
+- [ ] Magic Links
+- [ ] Passkeys (WebAuthn)
+- [ ] Email OTP
+- [ ] Phone Number
+- [ ] Username
+- [ ] Anonymous
+- [ ] One‑Tap Sign‑In
+
+
+#### Security & Compliance
+
+- [ ] Two‑Factor Authentication (2FA / TOTP)
+- [ ] Captcha
+- [ ] Rate Limiting
+- [ ] CSRF Protection
+
+
+#### Payments & Billing
+- [ ] Stripe
+- [ ] Polar
+- [ ] Autumn
+- [ ] Creem
