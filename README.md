@@ -6,7 +6,7 @@ OAuth flows, and secure cookie handling) while leaving data persistence
 entirely to you. You implement the [Adapter] interface against your own
 database, ORM, and schema. Gorta never touches your database directly.
 
-### Quick Start
+#### Quick Start
 
 ```go
 a, err := gorta.New(myAdapter, gorta.Config{
@@ -22,6 +22,34 @@ mux.Handle("/dashboard", a.RequireAuth()(dashboardHandler))
 // Apply session loading to all routes
 http.ListenAndServe(":8080", a.Middleware()(mux))
 ```
+
+
+#### Sending Email
+Sending verification emails is oprional
+
+To create your oun `mailer` implement this interface
+
+```go
+type Mailer interface {
+	SendVerificationEmail(ctx context.Context, to, verifyURL string) error
+	SendPasswordReset(ctx context.Context, to, resetURL string) error
+}
+```
+
+#### Resend Mailer Example
+
+```go
+// Usage
+mailer := resend.NewMailer(resend.Config{
+	APIKey:    "YOUR_API_KEY",
+	FromEmail: "email",
+	FromName:  "Name",
+})
+
+auth, err := gorta.New(sqladapter.New(db), config, mailer)
+```
+
+
 ### Errors
 
 Gorta defines sentinel errors in errors.go. Your Adapter must return
