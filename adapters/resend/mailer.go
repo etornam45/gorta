@@ -50,3 +50,15 @@ func (m *Mailer) SendPasswordReset(ctx context.Context, to, resetURL string) err
 	})
 	return err
 }
+
+
+func (m *Mailer) SendMagicLink(ctx context.Context, to, magicLink string) error {
+	_, err := m.client.Emails.SendWithContext(ctx, &resend.SendEmailRequest{
+		From:    m.config.FromEmail,
+		To:      []string{to},
+		Subject: "Magic Link",
+		Html:    fmt.Sprintf("<p>Click <a href='%s'>here</a> to login</p>", magicLink),
+		Text:    fmt.Sprintf("Click %s to login", magicLink),
+	})
+	return err
+}

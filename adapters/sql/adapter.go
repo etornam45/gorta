@@ -9,6 +9,7 @@ import (
 
 	"github.com/etornam45/gorta/core"
 	"github.com/etornam45/gorta/internals"
+	"github.com/etornam45/gorta/plugins/magiclink"
 )
 
 type SQLAdapter struct {
@@ -194,7 +195,7 @@ func (a *SQLAdapter) FindAccountByProvider(ctx context.Context, provider, provid
 	return &acc, nil
 }
 
-func (a *SQLAdapter) CreateVerification(ctx context.Context, v internals.Verification) (*internals.Verification, error) {
+func (a *SQLAdapter) CreateVerification(ctx context.Context, v magiclink.Verification) (*magiclink.Verification, error) {
 	_, err := a.db.ExecContext(ctx,
 		`INSERT INTO verifications (id, identifier, token, expires_at, created_at)
 		 VALUES ($1, $2, $3, $4, $5)`,
@@ -206,8 +207,8 @@ func (a *SQLAdapter) CreateVerification(ctx context.Context, v internals.Verific
 	return &v, nil
 }
 
-func (a *SQLAdapter) FindVerificationByToken(ctx context.Context, token string) (*internals.Verification, error) {
-	var v internals.Verification
+func (a *SQLAdapter) FindVerificationByToken(ctx context.Context, token string) (*magiclink.Verification, error) {
+	var v magiclink.Verification
 	err := a.db.QueryRowContext(ctx,
 		`SELECT id, identifier, token, expires_at, created_at
 		 FROM verifications WHERE token = $1`, token,

@@ -14,12 +14,12 @@ import (
 )
 
 type Config struct {
-	Secret string
+	Secret          string
 	SessionDuration time.Duration
-	CookieName string
-	CookieDomain string
-	SecureCookies bool
-	Logger *slog.Logger
+	CookieName      string
+	CookieDomain    string
+	SecureCookies   bool
+	Logger          *slog.Logger
 }
 
 type Auth struct {
@@ -283,7 +283,7 @@ func (a *Auth) handleSignOut(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *Auth) handleGetMe(w http.ResponseWriter, r *http.Request) {
-	WriteJSON(w, http.StatusOK, GetUser(r.Context()))
+	WriteJSON(w, http.StatusOK, GetSession(r.Context()))
 }
 
 func SessionMetaFromRequest(r *http.Request) core.SessionMeta {

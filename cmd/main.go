@@ -8,11 +8,13 @@ import (
 	"os"
 	"time"
 
-	gorta "github.com/etornam45/gorta/gorta"
-	sqlplugin "github.com/etornam45/gorta/plugins/sql"
+	gorta "github.com/etornam45/gorta"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/etornam45/gorta/plugins/resend"
+	"github.com/etornam45/gorta/adapters/resend"
+	sqladapter "github.com/etornam45/gorta/adapters/sql"
+	emailpassword "github.com/etornam45/gorta/plugins/emailpassword"
+	"github.com/etornam45/gorta/plugins/magiclink"
 )
 
 func main() {
@@ -22,23 +24,39 @@ func main() {
 	}
 	defer db.Close()
 	log.Println("Database connected")
-	runMigrations(db, "plugins/sql/schema.sql")
+	runMigrations(db, "adapters/sql/schema.sql")
+
+	config := gorta.Config{
+		Secret:          "asdfadflajsdkfjalksdjfkljaskdjfldsafsadfadsfsd",
+		SessionDuration: 1 * time.Hour,
+		SecureCookies:   false,
+		CookieDomain:    "localhost",
+		CookieName:      "gorta_session",
+	}
 
 	mailer := resend.NewMailer(resend.Config{
-		APIKey:    "YOUR_API_KEY",
-		FromEmail: "YOUR_EMAIL",
-		FromName:  "YOUR_NAME",
+		APIKey:    "YOUR API KEY HERE",
+		FromEmail: "YOUR EMAIL",
+		FromName:  "Gorta",
 	})
 
-	a, err := gorta.New(sqlplugin.New(db), gorta.Config{
-		Secret:            "asdfadflajsdkfjalksdjfkljaskdjfldsafsadfadsfsd",
-		SessionDuration:   1 * time.Hour,
-		SecureCookies:     false,
-		CookieDomain:      "localhost",
-		CookieName:        "gorta_session",
-		VerifyEmail:       true,
-		VerifyEmailDomain: "localhost:8080",
-	}, mailer)
+	storage := sqladapter.New(db)
+	emailpasswordPlugin, err := emailpassword.New(storage, storage, mailer, emailpassword.Config{
+		VerifyEmail: true,
+		BaseURL:     "http://localhost:8080",
+	})
+
+	magiclinkPlugin, err := magiclink.New(storage, mailer.(magiclink.Mailer), magiclink.Config{
+		BaseURL:    "http://localhost:8080",
+		Expiration: 1 * time.Hour,
+	})
+
+	a, err := gorta.New(
+		storage,
+		config,
+		gorta.WithPlugin(emailpasswordPlugin),
+		gorta.WithPlugin(magiclinkPlugin),
+	)
 	if err != nil {
 		log.Fatal(err)
 	}
