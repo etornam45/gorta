@@ -12,10 +12,30 @@ database, ORM, and schema. Gorta never touches your database directly.
 import github.com/etornam45/gorta
 ```
 
+**Storage**
 ```go
-a, err := gorta.New(myAdapter, gorta.Config{
-	Secret: os.Getenv("AUTH_SECRET"), // must be 32+ characters
+storage := sqladapter.New(db)
+```
+**Plugins**
+```go
+emailpasswordPlugin, err := emailpassword.New(storage, storage, mailer, emailpassword.Config{
+	VerifyEmail: true,
+	BaseURL:     "http://localhost:8080",
 })
+
+magiclinkPlugin, err := magiclink.New(storage, mailer.(magiclink.Mailer), magiclink.Config{
+	BaseURL:    "http://localhost:8080",
+	Expiration: 1 * time.Hour,
+})
+```
+**Usage**
+```go
+a, err := gorta.New(
+	storage,
+	config,
+	gorta.WithPlugin(emailpasswordPlugin),
+	gorta.WithPlugin(magiclinkPlugin),
+)
 
 // Mount Gorta's HTTP routes
 mux.Handle("/auth/", a.Handler())
@@ -29,28 +49,36 @@ http.ListenAndServe(":8080", a.Middleware()(mux))
 
 
 #### Sending Email
-Sending verification emails is oprional
-
-To create your oun `mailer` implement this interface
+Now every plugin *may have* it's own `storage` and `plugin` interface you must implement
 
 ```go
-type Mailer interface {
-	SendVerificationEmail(ctx context.Context, to, verifyURL string) error
-	SendPasswordReset(ctx context.Context, to, resetURL string) error
+// SQL storage for magiclink
+type Storage interface {
+	CreateVerification(ctx context.Context, v Verification) (*Verification, error)
+	FindVerificationByToken(ctx context.Context, token string) (*Verification, error)
+	DeleteVerification(ctx context.Context, id string) error
 }
-```
 
-#### Resend Mailer Example
+// the DB layer
+type SQLAdapter struct {
+	db *sql.DB
+}
 
-```go
-// Usage
-mailer := resend.NewMailer(resend.Config{
-	APIKey:    "YOUR_API_KEY",
-	FromEmail: "email",
-	FromName:  "Name",
-})
+func New(db *sql.DB) *SQLAdapter {
+	return &SQLAdapter{db: db}
+}
 
-auth, err := gorta.New(sqladapter.New(db), config, mailer)
+func (a *SQLAdapter) CreateVerification(ctx context.Context, v magiclink.Verification) (*magiclink.Verification, error) {
+	_, err := a.db.ExecContext(ctx,
+		`INSERT INTO verifications (id, identifier, token, expires_at, created_at)
+		 VALUES ($1, $2, $3, $4, $5)`,
+		v.ID, v.Identifier, v.Token, v.ExpiresAt, v.CreatedAt,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("sqladapter: creating verification: %w", err)
+	}
+	return &v, nil
+}
 ```
 
 
@@ -58,7 +86,7 @@ auth, err := gorta.New(sqladapter.New(db), config, mailer)
 
 - [x] Email Passord
 - [ ] Social Login
-- [ ] Magic Links
+- [x] Magic Links
 - [ ] Passkeys (WebAuthn)
 - [ ] Email OTP
 - [ ] Phone Number
