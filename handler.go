@@ -12,6 +12,8 @@ func (a *Auth) Handler() http.Handler {
 	mux.Handle("POST /sign-out", http.HandlerFunc(a.handleSignOut))
 	mux.Handle("GET /session", http.HandlerFunc(a.handleGetSession))
 	mux.Handle("GET /me", a.RequireAuth()(http.HandlerFunc(a.HandleGetMe)))
+
+	mux.Handle("GET /verify-email", http.HandlerFunc(a.HandleVerifyEmail))
 	return mux
 }
 
@@ -107,4 +109,25 @@ func sessionMetaFromRequest(r *http.Request) SessionMeta {
 
 func (a *Auth) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, GetSession(r.Context()))
+}
+
+
+func (a *Auth) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Token is required",
+		})
+		return
+	}
+
+	user, err := a.VerifyEmail(r.Context(), token)
+	if err != nil {
+		writeError(w, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user": user,
+	})
 }

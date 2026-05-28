@@ -2,8 +2,11 @@ package gorta
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"time"
+
+	"github.com/etornam45/gorta/email"
 )
 
 type Config struct {
@@ -12,15 +15,18 @@ type Config struct {
 	SessionDuration time.Duration
 	SecureCookies   bool
 	CookieDomain    string
+	VerifyEmail     bool
+	VerifyEmailDomain  string
 }
 
 type Auth struct {
 	adapter Adapter
 	config  Config
 	logger  *log.Logger
+	mailer  email.Mailer
 }
 
-func New(adapter Adapter, config Config) (*Auth, error) {
+func New(adapter Adapter, config Config, mailer email.Mailer) (*Auth, error) {
 	if adapter == nil {
 		return nil, errors.New("adapter is required")
 	}
@@ -33,11 +39,15 @@ func New(adapter Adapter, config Config) (*Auth, error) {
 	if config.SessionDuration == 0 {
 		config.SessionDuration = 7 * 24 * time.Hour
 	}
-	return &Auth{adapter: adapter, config: config}, nil
+	if config.VerifyEmail && mailer == nil {
+		return nil, errors.New("mailer is required for verify email")
+	}
+	return &Auth{adapter: adapter, config: config, mailer: mailer}, nil
 }
 
 func (a *Auth) logError(message string, err error) {
 	if a.logger != nil {
-		a.logger.Printf("[gorta] %s: %v", message, err)
+		fmt.Println("[gorta] %s: %v", message, err)
+		// a.logger.Printf("[gorta] %s: %v", message, err)
 	}
 }

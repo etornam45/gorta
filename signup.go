@@ -5,13 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"time"
-
 )
 
 func (a *Auth) SignUp(ctx context.Context, input SignUpInput, meta SessionMeta) (*SignUpResult, error) {
 	input.Email = normalizeEmail(input.Email)
 	input.Name = sanitizeName(input.Name)
-
+	fmt.Println("[gorta] input.Email: %s", input.Email)
 	if err := validateEmail(input.Email); err != nil {
 		return nil, err
 	}
@@ -32,6 +31,29 @@ func (a *Auth) SignUp(ctx context.Context, input SignUpInput, meta SessionMeta) 
 	if err != nil {
 		a.logError("hashing password", err)
 		return nil, err
+	}
+
+	if a.config.VerifyEmail {
+		token, err := generateToken()
+		if err != nil {
+			a.logError("generating token", err)
+			return nil, err
+		}
+		verification, err := a.adapter.CreateVerification(ctx, Verification{
+			Identifier: input.Email,
+			Token:      token,
+			ExpiresAt:  time.Now().Add(time.Hour * 24 * 3),
+		})
+		if err != nil {
+			a.logError("creating verification", err)
+			return nil, fmt.Errorf("gorta: creating verification: %w", err)
+		}
+		if err := a.mailer.SendVerificationEmail(ctx, input.Email, fmt.Sprintf("http://%s/auth/verify-email?token=%s", a.config.VerifyEmailDomain, verification.Token)); err != nil {
+			if err != nil {
+				a.logError("sending verification email", err)
+				return nil, fmt.Errorf("gorta: sending verification email: %w", err)
+			}
+		}
 	}
 
 	now := time.Now()
