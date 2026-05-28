@@ -6,7 +6,7 @@ import (
 
 	"github.com/resend/resend-go/v2"
 
-	"github.com/etornam45/gorta/pkgs/interfaces"
+	"github.com/etornam45/gorta/interfaces"
 )
 
 type Mailer struct {

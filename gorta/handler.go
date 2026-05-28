@@ -1,4 +1,4 @@
-package auth
+package gorta
 
 import (
 	"encoding/json"
@@ -112,7 +112,6 @@ func sessionMetaFromRequest(r *http.Request) internals.SessionMeta {
 func (a *Auth) HandleGetMe(w http.ResponseWriter, r *http.Request) {
 	WriteJSON(w, http.StatusOK, GetSession(r.Context()))
 }
-
 
 func (a *Auth) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 	token := r.URL.Query().Get("token")

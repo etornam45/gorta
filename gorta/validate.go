@@ -1,5 +1,4 @@
-package auth
-
+package gorta
 
 import (
 	"strings"

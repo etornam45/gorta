@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/etornam45/gorta/internals"
-	"github.com/etornam45/gorta/pkgs/interfaces"
+	"github.com/etornam45/gorta/interfaces"
 )
 
 type SQLAdapter struct {

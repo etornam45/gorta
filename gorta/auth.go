@@ -1,4 +1,4 @@
-package auth
+package gorta
 
 import (
 	"errors"
@@ -6,17 +6,17 @@ import (
 	"log"
 	"time"
 
-	"github.com/etornam45/gorta/pkgs/interfaces"
+	"github.com/etornam45/gorta/interfaces"
 )
 
 type Config struct {
-	CookieName      string // default: "gorta_session"
-	Secret          string
-	SessionDuration time.Duration
-	SecureCookies   bool
-	CookieDomain    string
-	VerifyEmail     bool
-	VerifyEmailDomain  string
+	CookieName        string // default: "gorta_session"
+	Secret            string
+	SessionDuration   time.Duration
+	SecureCookies     bool
+	CookieDomain      string
+	VerifyEmail       bool
+	VerifyEmailDomain string
 }
 
 type Auth struct {
