@@ -7,7 +7,6 @@ import (
 	"time"
 )
 
-
 func (a *Auth) createSession(ctx context.Context, userID string, meta SessionMeta) (*Session, string, error) {
 	token, err := generateToken()
 	if err != nil {
@@ -86,4 +85,3 @@ func (a *Auth) RevokeAllSessions(ctx context.Context, userID string) error {
 	}
 	return nil
 }
-
