@@ -6,7 +6,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/etornam45/gorta/email"
 )
 
 type Config struct {
@@ -23,10 +22,10 @@ type Auth struct {
 	adapter Adapter
 	config  Config
 	logger  *log.Logger
-	mailer  email.Mailer
+	mailer  Mailer
 }
 
-func New(adapter Adapter, config Config, mailer email.Mailer) (*Auth, error) {
+func New(adapter Adapter, config Config, mailer Mailer) (*Auth, error) {
 	if adapter == nil {
 		return nil, errors.New("adapter is required")
 	}
