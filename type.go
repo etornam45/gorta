@@ -34,7 +34,6 @@ type Account struct {
 	CreatedAt         time.Time
 }
 
-
 type Verification struct {
 	ID         string
 	Identifier string // the email address
@@ -43,18 +42,17 @@ type Verification struct {
 	CreatedAt  time.Time
 }
 
-
 type UpdateUserInput struct {
-	Email         *string
-	Name          *string
-	Image         *string
-	EmailVerified *bool
+	Email         *string `json:"email"`
+	Name          *string `json:"name"`
+	Image         *string `json:"image"`
+	EmailVerified *bool   `json:"email_verified"`
 }
 
 type SignUpInput struct {
-	Email    string
-	Password string
-	Name     string
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	Name     string `json:"name"`
 }
 
 type SignUpResult struct {
@@ -64,8 +62,8 @@ type SignUpResult struct {
 }
 
 type SignInInput struct {
-	Email    string
-	Password string
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
 type SignInResult struct {
@@ -75,6 +73,6 @@ type SignInResult struct {
 }
 
 type SessionMeta struct {
-	IPAddress string
-	UserAgent string
+	IPAddress string `json:"ip_address"`
+	UserAgent string `json:"user_agent"`
 }
