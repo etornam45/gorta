@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	gorta"github.com/etornam45/gorta/pkgs/auth"
+	gorta "github.com/etornam45/gorta/pkgs/auth"
 	sqlplugin "github.com/etornam45/gorta/plugins/sql"
 	_ "github.com/mattn/go-sqlite3"
 
