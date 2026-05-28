@@ -7,20 +7,20 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/etornam45/gorta/core"
 	"github.com/etornam45/gorta/internals"
-	"github.com/etornam45/gorta/interfaces"
 )
 
 type SQLAdapter struct {
 	db *sql.DB
 }
 
-func New(db *sql.DB) interfaces.Adapter {
+func New(db *sql.DB) *SQLAdapter {
 	return &SQLAdapter{db: db}
 }
 
 
-func (a *SQLAdapter) CreateUser(ctx context.Context, user internals.User) (*internals.User, error) {
+func (a *SQLAdapter) CreateUser(ctx context.Context, user core.User) (*core.User, error) {
 	_, err := a.db.ExecContext(ctx,
 		`INSERT INTO users (id, email, email_verified, name, image, created_at, updated_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -29,21 +29,21 @@ func (a *SQLAdapter) CreateUser(ctx context.Context, user internals.User) (*inte
 	)
 	if err != nil {
 		if isUniqueViolation(err) {
-			return nil, internals.ErrUserAlreadyExists
+			return nil, core.ErrUserAlreadyExists
 		}
 		return nil, fmt.Errorf("sqladapter: creating user: %w", err)
 	}
 	return &user, nil
 }
 
-func (a *SQLAdapter) FindUserByID(ctx context.Context, id string) (*internals.User, error) {
-	var u internals.User
+func (a *SQLAdapter) FindUserByID(ctx context.Context, id string) (*core.User, error) {
+	var u core.User
 	err := a.db.QueryRowContext(ctx,
 		`SELECT id, email, email_verified, name, image, created_at, updated_at
 		 FROM users WHERE id = $1`, id,
 	).Scan(&u.ID, &u.Email, &u.EmailVerified, &u.Name, &u.Image, &u.CreatedAt, &u.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, internals.ErrUserNotFound
+		return nil, core.ErrUserNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("sqladapter: finding user by id: %w", err)
@@ -51,14 +51,14 @@ func (a *SQLAdapter) FindUserByID(ctx context.Context, id string) (*internals.Us
 	return &u, nil
 }
 
-func (a *SQLAdapter) FindUserByEmail(ctx context.Context, email string) (*internals.User, error) {
-	var u internals.User
+func (a *SQLAdapter) FindUserByEmail(ctx context.Context, email string) (*core.User, error) {
+	var u core.User
 	err := a.db.QueryRowContext(ctx,
 		`SELECT id, email, email_verified, name, image, created_at, updated_at
 		 FROM users WHERE email = $1`, email,
 	).Scan(&u.ID, &u.Email, &u.EmailVerified, &u.Name, &u.Image, &u.CreatedAt, &u.UpdatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, internals.ErrUserNotFound
+		return nil, core.ErrUserNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("sqladapter: finding user by email: %w", err)
@@ -66,7 +66,7 @@ func (a *SQLAdapter) FindUserByEmail(ctx context.Context, email string) (*intern
 	return &u, nil
 }
 
-func (a *SQLAdapter) UpdateUser(ctx context.Context, id string, input internals.UpdateUserInput) (*internals.User, error) {
+func (a *SQLAdapter) UpdateUser(ctx context.Context, id string, input core.UpdateUserInput) (*core.User, error) {
 	if input.Name != nil {
 		if _, err := a.db.ExecContext(ctx,
 			`UPDATE users SET name = $1, updated_at = $2 WHERE id = $3`,
@@ -114,7 +114,7 @@ func (a *SQLAdapter) FindCredentialByUserID(ctx context.Context, userID string) 
 		`SELECT password_hash FROM credentials WHERE user_id = $1`, userID,
 	).Scan(&hash)
 	if errors.Is(err, sql.ErrNoRows) {
-		return "", internals.ErrUserNotFound
+		return "", core.ErrUserNotFound
 	}
 	return hash, err
 }
@@ -127,7 +127,7 @@ func (a *SQLAdapter) UpdateCredential(ctx context.Context, userID, newHash strin
 	return err
 }
 
-func (a *SQLAdapter) CreateSession(ctx context.Context, s internals.Session) (*internals.Session, error) {
+func (a *SQLAdapter) CreateSession(ctx context.Context, s core.Session) (*core.Session, error) {
 	_, err := a.db.ExecContext(ctx,
 		`INSERT INTO sessions (id, user_id, token, expires_at, ip_address, user_agent, created_at)
 		 VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -139,14 +139,14 @@ func (a *SQLAdapter) CreateSession(ctx context.Context, s internals.Session) (*i
 	return &s, nil
 }
 
-func (a *SQLAdapter) FindSessionByToken(ctx context.Context, token string) (*internals.Session, error) {
-	var s internals.Session
+func (a *SQLAdapter) FindSessionByToken(ctx context.Context, token string) (*core.Session, error) {
+	var s core.Session
 	err := a.db.QueryRowContext(ctx,
 		`SELECT id, user_id, token, expires_at, ip_address, user_agent, created_at
 		 FROM sessions WHERE token = $1`, token,
 	).Scan(&s.ID, &s.UserID, &s.Token, &s.ExpiresAt, &s.IPAddress, &s.UserAgent, &s.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, internals.ErrSessionNotFound
+		return nil, core.ErrSessionNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("sqladapter: finding session: %w", err)

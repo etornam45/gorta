@@ -20,12 +20,14 @@ type Config struct {
 	APIKey    string
 }
 
-func NewMailer(config Config) interfaces.Mailer {
+func NewMailer(config Config) interfaces.Mailer {	
 	return &Mailer{
 		client: resend.NewClient(config.APIKey),
 		config: config,
 	}
 }
+
+
 
 func (m *Mailer) SendVerificationEmail(ctx context.Context, to, verifyURL string) error {
 	_, err := m.client.Emails.SendWithContext(ctx, &resend.SendEmailRequest{
