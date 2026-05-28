@@ -7,10 +7,10 @@ import (
 	"log"
 	"os"
 	"time"
-	
-	_ "github.com/mattn/go-sqlite3"
+
 	"github.com/etornam45/gorta"
 	"github.com/etornam45/gorta/adapters/sqladapter"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 func main() {
@@ -23,23 +23,27 @@ func main() {
 	runMigrations(db, "adapters/sqladapter/schema.sql")
 
 	a, err := gorta.New(sqladapter.New(db), gorta.Config{
-		Secret: "asdfadflajsdkfjalksdjfkljaskdjfldsafsadfadsfsd",
+		Secret:          "asdfadflajsdkfjalksdjfkljaskdjfldsafsadfadsfsd",
 		SessionDuration: 1 * time.Hour,
-		SecureCookies: false,
-		CookieDomain: "localhost",
-		CookieName: "gorta_session",
+		SecureCookies:   false,
+		CookieDomain:    "localhost",
+		CookieName:      "gorta_session",
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	mux := http.NewServeMux()
+	log.Println("Server is running http://localhost:8080")
 
-	mux.Handle("/auth/", a.Handler())
+	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		gorta.WriteJSON(w, http.StatusOK, map[string]string{
+			"message": "Hello, World!",
+		})
+	})
+	mux.Handle("/auth/", http.StripPrefix("/auth", a.Handler()))
 	mux.Handle("/protected", a.RequireAuth()(http.HandlerFunc(ProtectedHandler)))
-	http.ListenAndServe(":8080", mux)
-	log.Println("Server is running on port 8080")
-
+	http.ListenAndServe(":8080", a.Middleware()(mux))
 }
 
 func ProtectedHandler(w http.ResponseWriter, r *http.Request) {
@@ -50,10 +54,9 @@ func ProtectedHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	gorta.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "Hello, " + user.Name + "!",
-		"user": user.Email,
+		"user":    user.Email,
 	})
 }
-
 
 func runMigrations(db *sql.DB, schemaPath string) {
 	content, err := os.ReadFile(schemaPath)

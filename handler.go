@@ -7,10 +7,11 @@ import (
 
 func (a *Auth) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /auth/sign-up", a.handleSignUp)
-	mux.HandleFunc("POST /auth/sign-in", a.handleSignIn)
-	mux.HandleFunc("POST /auth/sign-out", a.handleSignOut)
-	mux.HandleFunc("GET /auth/session", a.handleGetSession)
+	mux.Handle("POST /sign-up", http.HandlerFunc(a.handleSignUp))
+	mux.Handle("POST /sign-in", http.HandlerFunc(a.handleSignIn))
+	mux.Handle("POST /sign-out", http.HandlerFunc(a.handleSignOut))
+	mux.Handle("GET /session", http.HandlerFunc(a.handleGetSession))
+	mux.Handle("GET /me", a.RequireAuth()(http.HandlerFunc(a.HandleGetMe)))
 	return mux
 }
 
@@ -102,4 +103,8 @@ func sessionMetaFromRequest(r *http.Request) SessionMeta {
 		IPAddress: ip,
 		UserAgent: r.Header.Get("User-Agent"),
 	}
+}
+
+func (a *Auth) HandleGetMe(w http.ResponseWriter, r *http.Request) {
+	writeJSON(w, http.StatusOK, GetSession(r.Context()))
 }

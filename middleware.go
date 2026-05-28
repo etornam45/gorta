@@ -3,6 +3,7 @@ package gorta
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -75,7 +76,11 @@ func GetSession(ctx context.Context) *Session {
 
 // GetUser returns the authenticated user from the context, or nil if not authenticated.
 func GetUser(ctx context.Context) *User {
-	u, _ := ctx.Value(userContextKey).(*User)
+	u, ok := ctx.Value(userContextKey).(*User)
+	if !ok {
+		fmt.Println("User not found in context, Did you forget to add the middleware? Got: ", ctx.Value(userContextKey))
+		return nil
+	}
 	return u
 }
 
