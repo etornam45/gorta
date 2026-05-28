@@ -1,13 +1,15 @@
-package gorta
+package auth
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/etornam45/gorta/internals"
 )
 
-func (a *Auth) SignUp(ctx context.Context, input SignUpInput, meta SessionMeta) (*SignUpResult, error) {
+func (a *Auth) SignUp(ctx context.Context, input internals.SignUpInput, meta internals.SessionMeta) (*internals.SignUpResult, error) {
 	input.Email = normalizeEmail(input.Email)
 	input.Name = sanitizeName(input.Name)
 	fmt.Println("[gorta] input.Email: %s", input.Email)
@@ -20,26 +22,26 @@ func (a *Auth) SignUp(ctx context.Context, input SignUpInput, meta SessionMeta) 
 
 	_, err := a.adapter.FindUserByEmail(ctx, input.Email)
 	if err == nil {
-		return nil, ErrUserAlreadyExists
+		return nil, internals.ErrUserAlreadyExists
 	}
-	if !errors.Is(err, ErrUserNotFound) {
+	if !errors.Is(err, internals.ErrUserNotFound) {
 		a.logError("checking existing user", err)
 		return nil, err
 	}
 
-	hash, err := hashPassword(input.Password)
+	hash, err := internals.HashPassword(input.Password)
 	if err != nil {
 		a.logError("hashing password", err)
 		return nil, err
 	}
 
 	if a.config.VerifyEmail {
-		token, err := generateToken()
+		token, err := internals.GenerateToken()
 		if err != nil {
 			a.logError("generating token", err)
 			return nil, err
 		}
-		verification, err := a.adapter.CreateVerification(ctx, Verification{
+		verification, err := a.adapter.CreateVerification(ctx, internals.Verification{
 			Identifier: input.Email,
 			Token:      token,
 			ExpiresAt:  time.Now().Add(time.Hour * 24 * 3),
@@ -57,8 +59,8 @@ func (a *Auth) SignUp(ctx context.Context, input SignUpInput, meta SessionMeta) 
 	}
 
 	now := time.Now()
-	user := User{
-		ID:        generateID(),
+	user := internals.User{
+		ID:        internals.GenerateID(),
 		Email:     input.Email,
 		Name:      input.Name,
 		CreatedAt: now,
@@ -67,8 +69,8 @@ func (a *Auth) SignUp(ctx context.Context, input SignUpInput, meta SessionMeta) 
 
 	createdUser, err := a.adapter.CreateUser(ctx, user)
 	if err != nil {
-		if errors.Is(err, ErrUserAlreadyExists) {
-			return nil, ErrUserAlreadyExists
+		if errors.Is(err, internals.ErrUserAlreadyExists) {
+			return nil, internals.ErrUserAlreadyExists
 		}
 		a.logError("creating user", err)
 		return nil, err
@@ -85,10 +87,10 @@ func (a *Auth) SignUp(ctx context.Context, input SignUpInput, meta SessionMeta) 
 	session, token, err := a.createSession(ctx, createdUser.ID, meta)
 	if err != nil {
 		a.logError("creating session after sign-up", err)
-		return &SignUpResult{User: createdUser}, nil
+		return &internals.SignUpResult{User: createdUser}, nil
 	}
 
-	return &SignUpResult{
+	return &internals.SignUpResult{
 		User:    createdUser,
 		Session: session,
 		Token:   token,

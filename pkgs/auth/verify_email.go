@@ -1,32 +1,34 @@
-package gorta
+package auth
 
 import (
 	"context"
 	"time"
+
+	"github.com/etornam45/gorta/internals"
 )
 
-func (a *Auth) VerifyEmail(ctx context.Context, token string) (*User, error) {
+func (a *Auth) VerifyEmail(ctx context.Context, token string) (*internals.User, error) {
 	if token == "" {
-		return nil, ErrInvalidToken
+		return nil, internals.ErrInvalidToken
 	}
 	verification, err := a.adapter.FindVerificationByToken(ctx, token)
 	if err != nil {
 		a.logError("finding verification", err)
-		return nil, ErrVerificationNotFound
+		return nil, internals.ErrVerificationNotFound
 	}
 	if verification.ExpiresAt.Before(time.Now()) {
 		a.logError("verification expired", err)
-		return nil, ErrVerificationExpired
+		return nil, internals.ErrVerificationExpired
 	}
 	user, err := a.adapter.FindUserByEmail(ctx, verification.Identifier)
 	if err != nil {
 		a.logError("finding user", err)
-		return nil, ErrUserNotFound
+		return nil, internals.ErrUserNotFound
 	}
 	if user.EmailVerified {
-		return nil, ErrEmailNotVerified
+		return nil, internals.ErrEmailNotVerified
 	}
-	_, err = a.adapter.UpdateUser(ctx, user.ID, UpdateUserInput{
+	_, err = a.adapter.UpdateUser(ctx, user.ID, internals.UpdateUserInput{
 		EmailVerified: &[]bool{true}[0],
 	})
 	if err != nil {

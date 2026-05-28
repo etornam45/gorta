@@ -1,4 +1,4 @@
-package gorta
+package internals
 
 import (
 	"crypto/rand"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-func generateID() string {
+func GenerateID() string {
 	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		// rand.Read only fails if the OS entropy pool is broken.
@@ -16,7 +16,7 @@ func generateID() string {
 	return fmt.Sprintf("%x", b)
 }
 
-func generateToken() (string, error) {
+func GenerateToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("gorta: generating token: %w", err)

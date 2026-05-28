@@ -1,4 +1,4 @@
-package gorta
+package auth
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"log"
 	"time"
 
+	"github.com/etornam45/gorta/pkgs/interfaces"
 )
 
 type Config struct {
@@ -19,13 +20,13 @@ type Config struct {
 }
 
 type Auth struct {
-	adapter Adapter
+	adapter interfaces.Adapter
 	config  Config
 	logger  *log.Logger
-	mailer  Mailer
+	mailer  interfaces.Mailer
 }
 
-func New(adapter Adapter, config Config, mailer Mailer) (*Auth, error) {
+func New(adapter interfaces.Adapter, config Config, mailer interfaces.Mailer) (*Auth, error) {
 	if adapter == nil {
 		return nil, errors.New("adapter is required")
 	}

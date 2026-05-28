@@ -1,4 +1,4 @@
-package gorta
+package auth
 
 import (
 	"context"
@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/etornam45/gorta/internals"
 )
 
 type contextKey string
@@ -26,7 +28,7 @@ func (a *Auth) Middleware() func(http.Handler) http.Handler {
 
 			session, err := a.ValidateSession(r.Context(), token)
 			if err != nil {
-				if errors.Is(err, ErrSessionExpired) || errors.Is(err, ErrSessionNotFound) {
+				if errors.Is(err, internals.ErrSessionExpired) || errors.Is(err, internals.ErrSessionNotFound) {
 					a.clearSessionCookie(w)
 				}
 				next.ServeHTTP(w, r)
@@ -44,7 +46,7 @@ func (a *Auth) RequireAuth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if GetSession(r.Context()) == nil {
-				writeJSON(w, http.StatusUnauthorized, map[string]string{
+				WriteJSON(w, http.StatusUnauthorized, map[string]string{
 					"error":   "UNAUTHENTICATED",
 					"message": "you must be signed in to access this resource",
 				})
@@ -69,14 +71,14 @@ func (a *Auth) extractToken(r *http.Request) string {
 }
 
 // GetSession returns the session from the context, or nil if not authenticated.
-func GetSession(ctx context.Context) *Session {
-	s, _ := ctx.Value(sessionContextKey).(*Session)
+func GetSession(ctx context.Context) *internals.Session {
+	s, _ := ctx.Value(sessionContextKey).(*internals.Session)
 	return s
 }
 
 // GetUser returns the authenticated user from the context, or nil if not authenticated.
-func GetUser(ctx context.Context) *User {
-	u, ok := ctx.Value(userContextKey).(*User)
+func GetUser(ctx context.Context) *internals.User {
+	u, ok := ctx.Value(userContextKey).(*internals.User)
 	if !ok {
 		fmt.Println("User not found in context, Did you forget to add the middleware? Got: ", ctx.Value(userContextKey))
 		return nil

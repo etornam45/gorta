@@ -1,4 +1,4 @@
-package gorta
+package internals
 
 import "errors"
 

@@ -1,4 +1,4 @@
-package gorta
+package internals
 
 import (
 	"crypto/rand"
@@ -27,7 +27,7 @@ var defaultParams = argon2Params{
 	keyLength:   32,
 }
 
-func hashPassword(password string) (string, error) {
+func HashPassword(password string) (string, error) {
 	salt := make([]byte, defaultParams.saltLength)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("generating salt: %w", err)
@@ -59,7 +59,7 @@ func hashPassword(password string) (string, error) {
 	return encoded, nil
 }
 
-func verifyPassword(password, encoded string) (bool, error) {
+func VerifyPassword(password, encoded string) (bool, error) {
 	p, salt, hash, err := decodeHash(encoded)
 	if err != nil {
 		return false, err
@@ -109,4 +109,4 @@ func decodeHash(encoded string) (*argon2Params, []byte, []byte, error) {
 	return &p, salt, hash, nil
 }
 
-const dummyHash = "$argon2id$v=19$m=65536,t=3,p=2$c29tZXNhbHRzb21lc2FsdA$RMUMBkPmPJNqOmTDFOSOk6tfMaFJHhLbVPGCHDzJ8Ks"
+const DUMMY_HASH = "$argon2id$v=19$m=65536,t=3,p=2$c29tZXNhbHRzb21lc2FsdA$RMUMBkPmPJNqOmTDFOSOk6tfMaFJHhLbVPGCHDzJ8Ks"

@@ -1,20 +1,22 @@
-package gorta
+package auth
 
 import (
 	"context"
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/etornam45/gorta/internals"
 )
 
-func (a *Auth) createSession(ctx context.Context, userID string, meta SessionMeta) (*Session, string, error) {
-	token, err := generateToken()
+func (a *Auth) createSession(ctx context.Context, userID string, meta internals.SessionMeta) (*internals.Session, string, error) {
+	token, err := internals.GenerateToken()
 	if err != nil {
 		return nil, "", fmt.Errorf("gorta: generating session token: %w", err)
 	}
 
-	session := Session{
-		ID:        generateID(),
+	session := internals.Session{
+		ID:        internals.GenerateID(),
 		UserID:    userID,
 		Token:     token,
 		ExpiresAt: time.Now().Add(a.config.SessionDuration),
@@ -31,11 +33,11 @@ func (a *Auth) createSession(ctx context.Context, userID string, meta SessionMet
 	return created, token, nil
 }
 
-func (a *Auth) ValidateSession(ctx context.Context, token string) (*Session, error) {
+func (a *Auth) ValidateSession(ctx context.Context, token string) (*internals.Session, error) {
 	session, err := a.adapter.FindSessionByToken(ctx, token)
 	if err != nil {
-		if errors.Is(err, ErrSessionNotFound) {
-			return nil, ErrSessionNotFound
+		if errors.Is(err, internals.ErrSessionNotFound) {
+			return nil, internals.ErrSessionNotFound
 		}
 		a.logError("finding session", err)
 		return nil, err
@@ -47,7 +49,7 @@ func (a *Auth) ValidateSession(ctx context.Context, token string) (*Session, err
 				a.logError("deleting expired session", delErr)
 			}
 		}()
-		return nil, ErrSessionExpired
+		return nil, internals.ErrSessionExpired
 	}
 
 	user, err := a.adapter.FindUserByID(ctx, session.UserID)
@@ -63,7 +65,7 @@ func (a *Auth) ValidateSession(ctx context.Context, token string) (*Session, err
 func (a *Auth) RevokeSession(ctx context.Context, token string) error {
 	session, err := a.adapter.FindSessionByToken(ctx, token)
 	if err != nil {
-		if errors.Is(err, ErrSessionNotFound) {
+		if errors.Is(err, internals.ErrSessionNotFound) {
 			return nil
 		}
 		a.logError("finding session to revoke", err)

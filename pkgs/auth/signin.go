@@ -1,19 +1,21 @@
-package gorta
+package auth
 
 import (
 	"context"
 	"errors"
 	"fmt"
+
+	"github.com/etornam45/gorta/internals"
 )
 
-func (a *Auth) SignIn(ctx context.Context, input SignInInput, meta SessionMeta) (*SignInResult, error) {
+func (a *Auth) SignIn(ctx context.Context, input internals.SignInInput, meta internals.SessionMeta) (*internals.SignInResult, error) {
 	input.Email = normalizeEmail(input.Email)
 
 	user, err := a.adapter.FindUserByEmail(ctx, input.Email)
 	if err != nil {
-		if errors.Is(err, ErrUserNotFound) {
-			verifyPassword(input.Password, dummyHash) //nolint:errcheck
-			return nil, ErrInvalidCredentials
+		if errors.Is(err, internals.ErrUserNotFound) {
+			internals.VerifyPassword(input.Password, internals.DUMMY_HASH) //nolint:errcheck
+			return nil, internals.ErrInvalidCredentials
 		}
 		a.logError("finding user", err)
 		return nil, err
@@ -24,12 +26,12 @@ func (a *Auth) SignIn(ctx context.Context, input SignInInput, meta SessionMeta) 
 		return nil, fmt.Errorf("gorta: finding credential: %w", err)
 	}
 
-	ok, err := verifyPassword(input.Password, hash)
+	ok, err := internals.VerifyPassword(input.Password, hash)
 	if err != nil {
 		return nil, fmt.Errorf("gorta: verifying password: %w", err)
 	}
 	if !ok {
-		return nil, ErrInvalidCredentials
+		return nil, internals.ErrInvalidCredentials
 	}
 
 	session, token, err := a.createSession(ctx, user.ID, meta)
@@ -38,7 +40,7 @@ func (a *Auth) SignIn(ctx context.Context, input SignInInput, meta SessionMeta) 
 		return nil, err
 	}
 
-	return &SignInResult{
+	return &internals.SignInResult{
 		User:    user,
 		Session: session,
 		Token:   token,

@@ -8,11 +8,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/etornam45/gorta"
-	sqladapter "github.com/etornam45/gorta/adapters/sql"
+	gorta"github.com/etornam45/gorta/pkgs/auth"
+	sqlplugin "github.com/etornam45/gorta/plugins/sql"
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/etornam45/gorta/adapters/resend"
+	"github.com/etornam45/gorta/plugins/resend"
 )
 
 func main() {
@@ -22,15 +22,15 @@ func main() {
 	}
 	defer db.Close()
 	log.Println("Database connected")
-	runMigrations(db, "adapters/sql/schema.sql")
+	runMigrations(db, "plugins/sql/schema.sql")
 
 	mailer := resend.NewMailer(resend.Config{
-		APIKey:    "Your API Key",
-		FromEmail: "your@email.com",
-		FromName:  "Your Name",
+		APIKey:    "YOUR_API_KEY",
+		FromEmail: "YOUR_EMAIL",
+		FromName:  "YOUR_NAME",
 	})
 
-	a, err := gorta.New(sqladapter.New(db), gorta.Config{
+	a, err := gorta.New(sqlplugin.New(db), gorta.Config{
 		Secret:            "asdfadflajsdkfjalksdjfkljaskdjfldsafsadfadsfsd",
 		SessionDuration:   1 * time.Hour,
 		SecureCookies:     false,

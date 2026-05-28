@@ -1,4 +1,4 @@
-package gorta
+package auth
 
 import (
 	"net/http"
