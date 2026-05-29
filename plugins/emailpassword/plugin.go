@@ -1,14 +1,9 @@
 package emailpassword
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
-	"strings"
-	"time"
-	"unicode"
 
 	"github.com/etornam45/gorta/core"
 	"github.com/etornam45/gorta/interfaces"
@@ -17,9 +12,11 @@ import (
 type Config struct {
 	VerifyEmail bool
 	BaseURL string
+	VerifyEmailDomain string
 }
 
 type Plugin struct {
+	// core    gorta.Auth
 	storage core.Storage
 	creds   Storage
 	mailer  interfaces.Mailer // nil if no email features needed
@@ -56,252 +53,131 @@ func (p *Plugin) Routes() []core.Route {
 	return []core.Route{
 		{Method: core.POST, Path: "/sign-up", Handler: http.HandlerFunc(p.handleSignUp)	},
 		{Method: core.POST, Path: "/sign-in", Handler: http.HandlerFunc(p.handleSignIn)},
+		{Method: core.GET, Path: "/verify-email", Handler: http.HandlerFunc(p.HandleVerifyEmail)},
 	}
 }
 
-type signUpInput struct {
+type SignUpInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 	Name     string `json:"name"`
 }
 
-func (p *Plugin) handleSignUp(w http.ResponseWriter, r *http.Request) {
-	var input signUpInput
-	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeJSON(w, http.StatusBadRequest, errBody("INVALID_BODY", "request body must be valid JSON"))
-		return
-	}
-
-	result, err := p.signUp(r.Context(), input, core.SessionMetaFromRequest(r))
-	if err != nil {
-		writeError(w, err)
-		return
-	}
-
-	if result.token != "" {
-		setSessionCookie(w, result.token, p.sessionDuration())
-	}
-
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"user":    result.user,
-		"session": result.session,
-	})
-}
-
-type signUpResult struct {
-	user    *core.User
-	session *core.Session
-	token   string
-}
-
-func (p *Plugin) signUp(ctx context.Context, input signUpInput, meta core.SessionMeta) (*signUpResult, error) {
-	input.Email = normalizeEmail(input.Email)
-	input.Name = sanitizeName(input.Name)
-
-	if err := validateEmail(input.Email); err != nil {
-		return nil, err
-	}
-	if err := validatePassword(input.Password); err != nil {
-		return nil, err
-	}
-
-	// Check for existing user before hashing — Argon2id is slow by design
-	if _, err := p.storage.FindUserByEmail(ctx, input.Email); err == nil {
-		return nil, core.ErrUserAlreadyExists
-	} else if !errors.Is(err, core.ErrUserNotFound) {
-		return nil, fmt.Errorf("emailpassword: checking email: %w", err)
-	}
-
-	hash, err := core.HashPassword(input.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	now := time.Now()
-	user, err := p.storage.CreateUser(ctx, core.User{
-		ID:        core.GenerateID(),
-		Email:     input.Email,
-		Name:      input.Name,
-		CreatedAt: now,
-		UpdatedAt: now,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("emailpassword: creating user: %w", err)
-	}
-
-	if err := p.creds.CreateCredential(ctx, user.ID, hash); err != nil {
-		p.storage.DeleteUser(ctx, user.ID) //nolint:errcheck
-		return nil, fmt.Errorf("emailpassword: storing credential: %w", err)
-	}
-
-	session, token, err := p.createSession(ctx, user.ID, meta)
-	if err != nil {
-		return &signUpResult{user: user}, nil
-	}
-
-	return &signUpResult{user: user, session: session, token: token}, nil
-}
-
-type signInInput struct {
+type SignInInput struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
 }
 
-func (p *Plugin) handleSignIn(w http.ResponseWriter, r *http.Request) {
-	var input signInInput
+func (p *Plugin) handleSignUp(w http.ResponseWriter, r *http.Request) {
+	var input SignUpInput
 	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
-		writeJSON(w, http.StatusBadRequest, errBody("INVALID_BODY", "request body must be valid JSON"))
+		core.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "INVALID_BODY",
+			"message": "request body must be valid JSON",
+		})
 		return
 	}
 
-	session, token, err := p.signIn(r.Context(), input, core.SessionMetaFromRequest(r))
+	result, err := p.SignUp(r.Context(), input, core.SessionMetaFromRequest(r))
 	if err != nil {
-		writeError(w, err)
+		core.WriteError(w, err)
 		return
 	}
 
-	setSessionCookie(w, token, p.sessionDuration())
-	writeJSON(w, http.StatusOK, map[string]any{
+	if result.Token != "" {
+		// core.SetSessionCookie(w, result.Token)
+	}
+
+	core.WriteJSON(w, http.StatusCreated, map[string]any{
+		"user":    result.User,
+		"session": result.Session,
+	})
+}
+
+func (p *Plugin) handleSignIn(w http.ResponseWriter, r *http.Request) {
+	var input SignInInput
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		core.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error":   "INVALID_BODY",
+			"message": "request body must be valid JSON",
+		})
+		return
+	}
+
+	result, err := p.SignIn(r.Context(), input, core.SessionMetaFromRequest(r))
+	if err != nil {
+		core.WriteError(w, err)
+		return
+	}
+
+	// core.SetSessionCookie(w, result.Token)
+	core.WriteJSON(w, http.StatusOK, map[string]any{
+		"user":    result.User,
+		"session": result.Session,
+	})
+}
+
+func (p *Plugin) handleSignOut(w http.ResponseWriter, r *http.Request) {
+	token := core.ExtractToken(r, core.DefaultSessionCookie)
+	if token != "" {
+		if err := p.SignOut(r.Context(), token); err != nil {
+			fmt.Printf("[gorta] error signing out session: %v\n", err)
+		}
+	}
+
+	p.clearSessionCookie(w)
+	core.WriteJSON(w, http.StatusOK, map[string]string{
+		"message": "signed out",
+	})
+}
+
+func (p *Plugin) handleGetSession(w http.ResponseWriter, r *http.Request) {
+	session := p.GetSession(r.Context())
+	if session == nil {
+		core.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error":   "UNAUTHENTICATED",
+			"message": "no active session",
+		})
+		return
+	}
+
+	core.WriteJSON(w, http.StatusOK, map[string]any{
 		"user":    session.User,
 		"session": session,
 	})
 }
 
-func (p *Plugin) signIn(ctx context.Context, input signInInput, meta core.SessionMeta) (*core.Session, string, error) {
-	input.Email = normalizeEmail(input.Email)
+func sessionMetaFromRequest(r *http.Request) core.SessionMeta {
+	ip := r.RemoteAddr
+	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
+		ip = forwarded
+	}
+	return core.SessionMeta{
+		IPAddress: ip,
+		UserAgent: r.Header.Get("User-Agent"),
+	}
+}
 
-	user, err := p.storage.FindUserByEmail(ctx, input.Email)
+func (p *Plugin) HandleGetMe(w http.ResponseWriter, r *http.Request) {
+	core.WriteJSON(w, http.StatusOK, p.GetSession(r.Context()))
+}
+
+func (p *Plugin) HandleVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	token := r.URL.Query().Get("token")
+	if token == "" {
+		core.WriteJSON(w, http.StatusBadRequest, map[string]string{
+			"error": "Token is required",
+		})
+		return
+	}
+
+	user, err := p.VerifyEmail(r.Context(), token)
 	if err != nil {
-		if errors.Is(err, core.ErrUserNotFound) {
-			core.VerifyPassword(input.Password, core.DUMMY_HASH) //nolint:errcheck
-			return nil, "", core.ErrInvalidCredentials
-		}
-		return nil, "", fmt.Errorf("emailpassword: finding user: %w", err)
+		core.WriteError(w, err)
+		return
 	}
 
-	hash, err := p.creds.FindCredentialByUserID(ctx, user.ID)
-	if err != nil {
-		return nil, "", fmt.Errorf("emailpassword: finding credential: %w", err)
-	}
-
-	ok, err := core.VerifyPassword(input.Password, hash)
-	if err != nil || !ok {
-		return nil, "", core.ErrInvalidCredentials
-	}
-
-	session, token, err := p.createSession(ctx, user.ID, meta)
-	if err != nil {
-		return nil, "", err
-	}
-	session.User = user
-
-	return session, token, nil
-}
-
-
-func (p *Plugin) createSession(ctx context.Context, userID string, meta core.SessionMeta) (*core.Session, string, error) {
-	token, err := core.GenerateToken()
-	if err != nil {
-		return nil, "", err
-	}
-
-	session := core.Session{
-		ID:        core.GenerateID(),
-		UserID:    userID,
-		Token:     token,
-		ExpiresAt: time.Now().Add(p.sessionDuration()),
-		IPAddress: meta.IPAddress,
-		UserAgent: meta.UserAgent,
-		CreatedAt: time.Now(),
-	}
-
-	created, err := p.storage.CreateSession(ctx, session)
-	if err != nil {
-		return nil, "", fmt.Errorf("emailpassword: creating session: %w", err)
-	}
-
-	return created, token, nil
-}
-
-func (p *Plugin) sessionDuration() time.Duration {
-	return 7 * 24 * time.Hour // plugins inherit or can override
-}
-
-func validateEmail(email string) error {
-	if len(email) == 0 {
-		return core.ErrInvalidEmail
-	}
-	at := strings.LastIndex(email, "@")
-	if at <= 0 {
-		return core.ErrInvalidEmail
-	}
-	if !strings.Contains(email[at+1:], ".") {
-		return core.ErrInvalidEmail
-	}
-	if strings.ContainsAny(email, " \t\n\r") {
-		return core.ErrInvalidEmail
-	}
-	return nil
-}
-
-func validatePassword(password string) error {
-	if len(password) < 8 {
-		return core.ErrWeakPassword
-	}
-	return nil
-}
-
-func normalizeEmail(email string) string {
-	return strings.ToLower(strings.TrimSpace(email))
-}
-
-func sanitizeName(name string) string {
-	return strings.Map(func(r rune) rune {
-		if unicode.IsControl(r) {
-			return -1
-		}
-		return r
-	}, strings.TrimSpace(name))
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v) //nolint:errcheck
-}
-
-func writeError(w http.ResponseWriter, err error) {
-	status, code, message := errorToHTTP(err)
-	writeJSON(w, status, errBody(code, message))
-}
-
-func errBody(code, message string) map[string]string {
-	return map[string]string{"error": code, "message": message}
-}
-
-func errorToHTTP(err error) (int, string, string) {
-	switch {
-	case errors.Is(err, core.ErrInvalidCredentials):
-		return http.StatusUnauthorized, "INVALID_CREDENTIALS", "invalid email or password"
-	case errors.Is(err, core.ErrUserAlreadyExists):
-		return http.StatusConflict, "USER_ALREADY_EXISTS", "a user with this email already exists"
-	case errors.Is(err, core.ErrWeakPassword):
-		return http.StatusBadRequest, "WEAK_PASSWORD", "password must be at least 8 characters"
-	case errors.Is(err, core.ErrInvalidEmail):
-		return http.StatusBadRequest, "INVALID_EMAIL", "invalid email address"
-	default:
-		return http.StatusInternalServerError, "INTERNAL_ERROR", "an unexpected error occurred"
-	}
-}
-
-func setSessionCookie(w http.ResponseWriter, token string, d time.Duration) {
-	http.SetCookie(w, &http.Cookie{
-		Name:     "gorta_session",
-		Value:    token,
-		Path:     "/",
-		Expires:  time.Now().Add(d),
-		MaxAge:   int(d.Seconds()),
-		HttpOnly: true,
-		SameSite: http.SameSiteLaxMode,
+	core.WriteJSON(w, http.StatusOK, map[string]any{
+		"user": user,
 	})
 }

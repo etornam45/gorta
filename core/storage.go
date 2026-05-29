@@ -48,4 +48,6 @@ type Storage interface {
 	FindSessionByToken(ctx context.Context, token string) (*Session, error)
 	DeleteSession(ctx context.Context, id string) error
 	DeleteSessionsByUserID(ctx context.Context, userID string) error
+	RevokeSession(ctx context.Context, token string) error
+	RevokeAllSessions(ctx context.Context, userID string) error
 }

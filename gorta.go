@@ -83,6 +83,7 @@ func (a *Auth) Handler() http.Handler {
 
 	for _, p := range a.plugins {
 		for _, r := range p.Routes() {
+			fmt.Printf("[gorta] registering plugin route: %s %s\n", r.Method, r.Path)
 			pattern := string(r.Method) + " " + r.Path
 			mux.Handle(pattern, r.Handler)
 		}

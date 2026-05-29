@@ -1,4 +1,4 @@
-package gorta
+package core
 
 import (
 	"encoding/json"

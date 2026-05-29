@@ -9,6 +9,7 @@ import (
 
 	"github.com/etornam45/gorta/core"
 	"github.com/etornam45/gorta/internals"
+	"github.com/etornam45/gorta/plugins/emailpassword"
 	"github.com/etornam45/gorta/plugins/magiclink"
 )
 
@@ -160,9 +161,18 @@ func (a *SQLAdapter) DeleteSession(ctx context.Context, id string) error {
 	return err
 }
 
+func (a *SQLAdapter) RevokeSession(ctx context.Context, token string) error {
+	_, err := a.db.ExecContext(ctx, `DELETE FROM sessions WHERE token = $1`, token)
+	return err
+}
+
 func (a *SQLAdapter) DeleteSessionsByUserID(ctx context.Context, userID string) error {
 	_, err := a.db.ExecContext(ctx, `DELETE FROM sessions WHERE user_id = $1`, userID)
 	return err
+}
+
+func (a *SQLAdapter) RevokeAllSessions(ctx context.Context, userID string) error {
+	return a.DeleteSessionsByUserID(ctx, userID)
 }
 
 func (a *SQLAdapter) CreateAccount(ctx context.Context, acc internals.Account) (*internals.Account, error) {
@@ -222,6 +232,20 @@ func (a *SQLAdapter) FindVerificationByToken(ctx context.Context, token string) 
 	return &v, nil
 }
 
+func (a *SQLAdapter) EmailPasswordFindVerificationByToken(ctx context.Context, token string) (*emailpassword.Verification, error) {
+	var v emailpassword.Verification
+	err := a.db.QueryRowContext(ctx,
+		`SELECT id, identifier, token, expires_at, created_at
+		 FROM verifications WHERE token = $1`, token,
+	).Scan(&v.ID, &v.Identifier, &v.Token, &v.ExpiresAt, &v.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, core.ErrVerificationNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("sqladapter: finding email password verification: %w", err)
+	}
+	return &v, nil
+}
 func (a *SQLAdapter) DeleteVerification(ctx context.Context, id string) error {
 	_, err := a.db.ExecContext(ctx, `DELETE FROM verifications WHERE id = $1`, id)
 	return err
