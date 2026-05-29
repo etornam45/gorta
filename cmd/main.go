@@ -17,6 +17,7 @@ import (
 
 	"github.com/etornam45/gorta/adapters/resend"
 	sqladapter "github.com/etornam45/gorta/adapters/sql"
+	"github.com/etornam45/gorta/core"
 	emailpassword "github.com/etornam45/gorta/plugins/emailpassword"
 	"github.com/etornam45/gorta/plugins/magiclink"
 	"github.com/etornam45/gorta/plugins/oauth"
@@ -101,7 +102,7 @@ func main() {
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
-		gorta.WriteJSON(w, http.StatusOK, map[string]string{
+		core.WriteJSON(w, http.StatusOK, map[string]string{
 			"message": "Hello, World!",
 		})
 	})
@@ -120,7 +121,7 @@ func ProtectedHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-	gorta.WriteJSON(w, http.StatusOK, map[string]string{
+	core.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "Hello, " + user.Name + "!",
 		"user":    user.Email,
 	})

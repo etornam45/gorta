@@ -2,7 +2,6 @@ package gorta
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -86,11 +85,12 @@ func (a *Auth) Handler() http.Handler {
 	mux.HandleFunc("POST /sign-out", a.handleSignOut)
 	mux.HandleFunc("GET /me", a.RequireAuth()(http.HandlerFunc(a.handleGetMe)).ServeHTTP)
 
+	// FIXME: Consider using a more efficient way to register routes
 	for _, p := range a.plugins {
 		for _, r := range p.Routes() {
-			fmt.Printf("[gorta] registering plugin route: %s %s\n", r.Method, r.Path)
 			pattern := string(r.Method) + " " + r.Path
 			mux.Handle(pattern, r.Handler)
+			a.logger.Info("registered plugin route", "method", r.Method, "path", r.Path)
 		}
 	}
 
@@ -180,7 +180,7 @@ func (a *Auth) RequireAuth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if GetSession(r.Context()) == nil {
-				WriteJSON(w, http.StatusUnauthorized, map[string]string{
+				core.WriteJSON(w, http.StatusUnauthorized, map[string]string{
 					"error":   "UNAUTHENTICATED",
 					"message": "you must be signed in",
 				})
@@ -195,7 +195,7 @@ func RequireAuth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if GetSession(r.Context()) == nil {
-				WriteJSON(w, http.StatusUnauthorized, map[string]string{
+				core.WriteJSON(w, http.StatusUnauthorized, map[string]string{
 					"error":   "UNAUTHENTICATED",
 					"message": "you must be signed in",
 				})
@@ -264,13 +264,13 @@ func (a *Auth) ClearSessionCookie(w http.ResponseWriter) {
 func (a *Auth) handleGetSession(w http.ResponseWriter, r *http.Request) {
 	session := GetSession(r.Context())
 	if session == nil {
-		WriteJSON(w, http.StatusUnauthorized, map[string]string{
+		core.WriteJSON(w, http.StatusUnauthorized, map[string]string{
 			"error":   "UNAUTHENTICATED",
 			"message": "no active session",
 		})
 		return
 	}
-	WriteJSON(w, http.StatusOK, map[string]any{
+	core.WriteJSON(w, http.StatusOK, map[string]any{
 		"user":    session.User,
 		"session": session,
 	})
@@ -284,55 +284,9 @@ func (a *Auth) handleSignOut(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.ClearSessionCookie(w)
-	WriteJSON(w, http.StatusOK, map[string]string{"message": "signed out"})
+	core.WriteJSON(w, http.StatusOK, map[string]string{"message": "signed out"})
 }
 
 func (a *Auth) handleGetMe(w http.ResponseWriter, r *http.Request) {
-	WriteJSON(w, http.StatusOK, GetSession(r.Context()))
-}
-
-func SessionMetaFromRequest(r *http.Request) core.SessionMeta {
-	ip := r.RemoteAddr
-	if forwarded := r.Header.Get("X-Forwarded-For"); forwarded != "" {
-		ip = forwarded
-	}
-	return core.SessionMeta{IPAddress: ip, UserAgent: r.Header.Get("User-Agent")}
-}
-
-func (a *Auth) logError(msg string, err error) {
-	a.logger.Error(msg, "error", err)
-}
-
-func WriteJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(v) //nolint:errcheck
-}
-
-func WriteError(w http.ResponseWriter, err error) {
-	status, code, message := errorToHTTP(err)
-	WriteJSON(w, status, map[string]string{"error": code, "message": message})
-}
-
-func errorToHTTP(err error) (status int, code, message string) {
-	switch {
-	case errors.Is(err, core.ErrInvalidCredentials):
-		return http.StatusUnauthorized, "INVALID_CREDENTIALS", "invalid email or password"
-	case errors.Is(err, core.ErrUserNotFound):
-		return http.StatusNotFound, "USER_NOT_FOUND", "user not found"
-	case errors.Is(err, core.ErrUserAlreadyExists):
-		return http.StatusConflict, "USER_ALREADY_EXISTS", "a user with this email already exists"
-	case errors.Is(err, core.ErrSessionNotFound), errors.Is(err, core.ErrInvalidToken):
-		return http.StatusUnauthorized, "INVALID_SESSION", "session is invalid"
-	case errors.Is(err, core.ErrSessionExpired):
-		return http.StatusUnauthorized, "SESSION_EXPIRED", "session has expired"
-	case errors.Is(err, core.ErrEmailNotVerified):
-		return http.StatusForbidden, "EMAIL_NOT_VERIFIED", "please verify your email address"
-	case errors.Is(err, core.ErrWeakPassword):
-		return http.StatusBadRequest, "WEAK_PASSWORD", "password must be at least 8 characters"
-	case errors.Is(err, core.ErrInvalidEmail):
-		return http.StatusBadRequest, "INVALID_EMAIL", "invalid email address"
-	default:
-		return http.StatusInternalServerError, "INTERNAL_ERROR", "an unexpected error occurred"
-	}
+	core.WriteJSON(w, http.StatusOK, GetSession(r.Context()))
 }
