@@ -1,5 +1,7 @@
 <p align="center">
+  <img src="./gorta.png" width="100" />
 </p>
+
 
 ![Gorta](./gorta.png 'Gorta')
 
