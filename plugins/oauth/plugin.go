@@ -25,6 +25,7 @@ type Plugin struct {
 	providers map[string]Provider
 }
 
+// FIXME: Storage is not a pointer, so we need to pass a pointer to the storage
 func New(users core.Storage, accounts Storage, state AuthState, config Config) (*Plugin, error) {
 	if users == nil {
 		return nil, fmt.Errorf("oauth: user storage is required")
@@ -99,6 +100,7 @@ func (p *Plugin) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 	opts := []oauth2.AuthCodeOption{}
 	if provider.Name() == string(Google) {
 		// Google requires the access_type=offline parameter to get a refresh token
+		//TODO:  Move this logic to the provider level so each provider can handle it differently
 		opts = append(opts, oauth2.SetAuthURLParam("access_type", "offline"))
 	}
 	url := cfg.AuthCodeURL(stateToken, opts...)

@@ -1,3 +1,8 @@
+<p align="center">
+</p>
+
+![Gorta](./gorta.png 'Gorta')
+
 **`[Gorta]`** is a minimal, adapter-based authentication library for Go.
 
 #### Manifesto
