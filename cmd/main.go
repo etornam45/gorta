@@ -2,13 +2,17 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
 	"net/http"
 
 	"log"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	gorta "github.com/etornam45/gorta"
+	"github.com/joho/godotenv"
 	_ "github.com/mattn/go-sqlite3"
 
 	"github.com/etornam45/gorta/adapters/resend"
@@ -20,6 +24,7 @@ import (
 )
 
 func main() {
+	_ = godotenv.Load()
 	db, err := sql.Open("sqlite3", "./gorta.db")
 	if err != nil {
 		log.Fatal(err)
@@ -27,23 +32,29 @@ func main() {
 	defer db.Close()
 	log.Println("Database connected")
 	runMigrations(db, "adapters/sql/schema.sql")
-	cfg, err := LoadConfig()
+
+	sessionDuration, err := parseDuration(os.Getenv("SESSION_DURATION"))
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("SESSION_DURATION: ", err)
 	}
+	secureCookies, err := parseBool(os.Getenv("COOKIE_SECURE"))
+	if err != nil {
+		log.Fatal("COOKIE_SECURE: ", err)
+	}
+
 	gortaConfig := gorta.Config{
-		Secret:          cfg.Secret,
-		SessionDuration: cfg.SessionDuration,
-		BaseURL:         cfg.BaseURL,
-		SecureCookies:   cfg.SecureCookies,
-		CookieDomain:    cfg.CookieDomain,
-		CookieName:      cfg.CookieName,
+		Secret:          os.Getenv("SECRET"),
+		SessionDuration: sessionDuration,
+		BaseURL:         os.Getenv("BASE_URL"),
+		SecureCookies:   secureCookies,
+		CookieDomain:    os.Getenv("COOKIE_DOMAIN"),
+		CookieName:      os.Getenv("COOKIE_NAME"),
 	}
 
 	mailer := resend.NewMailer(resend.Config{
-		APIKey:    cfg.ResendAPIKey,
-		FromEmail: cfg.FromEmail,
-		FromName:  cfg.FromName,
+		APIKey:    os.Getenv("RESEND_API_KEY"),
+		FromEmail: os.Getenv("FROM_EMAIL"),
+		FromName:  os.Getenv("FROM_NAME"),
 	})
 
 	storage := sqladapter.New(db)
@@ -62,16 +73,16 @@ func main() {
 	}
 
 	google := providers.NewGoogleProvider(providers.GoogleConfig{
-		ClientID:     cfg.GoogleClientID,
-		ClientSecret: cfg.GoogleClientSecret,
+		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
 	})
 	github := providers.NewGitHubProvider(providers.GitHubConfig{
-		ClientID:     cfg.GitHubClientID,
-		ClientSecret: cfg.GitHubClientSecret,
+		ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
+		ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
 	})
 	oauthPlugin, err := oauth.New(storage, storage, nil, oauth.Config{
 		Providers:       []oauth.Provider{google, github},
-		SuccessRedirect: cfg.BaseURL + "/protected",
+		SuccessRedirect: os.Getenv("BASE_URL") + "/protected",
 	})
 	if err != nil {
 		log.Fatal(err)
@@ -127,4 +138,24 @@ func runMigrations(db *sql.DB, schemaPath string) {
 		return
 	}
 	log.Println("Migrations completed successfully")
+}
+
+func parseBool(s string) (bool, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return false, nil
+	}
+	return strconv.ParseBool(s)
+}
+
+func parseDuration(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, nil
+	}
+	d, err := time.ParseDuration(s)
+	if err != nil {
+		return 0, fmt.Errorf("invalid duration %q: %w", s, err)
+	}
+	return d, nil
 }

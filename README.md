@@ -80,10 +80,29 @@ func (a *SQLAdapter) CreateVerification(ctx context.Context, v magiclink.Verific
 ```
 
 
+#### OAuth
+You only have Google and Github. Hoping to add more providers
+
+```go
+google := providers.NewGoogleProvider(providers.GoogleConfig{
+	ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
+	ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
+})
+github := providers.NewGitHubProvider(providers.GitHubConfig{
+	ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
+	ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
+})
+oauthPlugin, err := oauth.New(storage, storage, nil, oauth.Config{
+	Providers:       []oauth.Provider{google, github},
+	SuccessRedirect: os.Getenv("BASE_URL") + "/protected",
+})
+```
+
+
 #### Auth Methods
 
 - [x] Email Passord
-- [ ] Social Login
+- [x] Social Login (Google, Github)
 - [x] Magic Links
 - [ ] Passkeys (WebAuthn)
 - [ ] Email OTP
