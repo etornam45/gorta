@@ -29,27 +29,32 @@ func main() {
 	config := gorta.Config{
 		Secret:          "asdfadflajsdkfjalksdjfkljaskdjfldsafsadfadsfsd",
 		SessionDuration: 1 * time.Hour,
+		BaseURL:         "http://localhost:8080",
 		SecureCookies:   false,
 		CookieDomain:    "localhost",
 		CookieName:      "gorta_session",
 	}
 
 	mailer := resend.NewMailer(resend.Config{
-		APIKey:    "YOUR API KEY HERE",
-		FromEmail: "YOUR EMAIL",
+		APIKey:    "re_YHhyanrD_K7W2SWxqLVGfKcw6qaAKZiDQ",
+		FromEmail: "onboarding@resend.dev",
 		FromName:  "Gorta",
 	})
 
 	storage := sqladapter.New(db)
 	emailpasswordPlugin, err := emailpassword.New(storage, storage, mailer, emailpassword.Config{
-		VerifyEmail: true,
-		BaseURL:     "http://localhost:8080",
+		VerifyEmail: false,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	magiclinkPlugin, err := magiclink.New(storage, mailer.(magiclink.Mailer), magiclink.Config{
-		BaseURL:    "http://localhost:8080",
+	magiclinkPlugin, err := magiclink.New(storage, mailer, magiclink.Config{
 		Expiration: 1 * time.Hour,
 	})
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	a, err := gorta.New(
 		storage,
@@ -62,8 +67,6 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	log.Println("Server is running http://localhost:8080")
-
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		gorta.WriteJSON(w, http.StatusOK, map[string]string{
 			"message": "Hello, World!",
@@ -71,7 +74,11 @@ func main() {
 	})
 	mux.Handle("/auth/", http.StripPrefix("/auth", a.Handler()))
 	mux.Handle("/protected", a.RequireAuth()(http.HandlerFunc(ProtectedHandler)))
-	http.ListenAndServe(":8080", a.Middleware()(mux))
+
+	log.Println("Server is running http://localhost:8080")
+	if err := http.ListenAndServe(":8080", a.Middleware()(mux)); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func ProtectedHandler(w http.ResponseWriter, r *http.Request) {

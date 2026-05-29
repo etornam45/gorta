@@ -4,10 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"github.com/etornam45/gorta/core"
-	"github.com/etornam45/gorta/internals"
 )
 
 type SignInResult struct {
@@ -21,9 +19,9 @@ func (p *Plugin) SignIn(ctx context.Context, input SignInInput, meta core.Sessio
 
 	user, err := p.storage.FindUserByEmail(ctx, input.Email)
 	if err != nil {
-		if errors.Is(err, internals.ErrUserNotFound) {
-			internals.VerifyPassword(input.Password, internals.DUMMY_HASH) //nolint:errcheck
-			return nil, internals.ErrInvalidCredentials
+		if errors.Is(err, core.ErrUserNotFound) {
+			core.VerifyPassword(input.Password, core.DUMMY_HASH) //nolint:errcheck
+			return nil, core.ErrInvalidCredentials
 		}
 		fmt.Printf("[gorta] error finding user: %v\n", err)
 		return nil, err
@@ -35,33 +33,17 @@ func (p *Plugin) SignIn(ctx context.Context, input SignInInput, meta core.Sessio
 		return nil, err
 	}
 
-	ok, err := internals.VerifyPassword(input.Password, hash)
+	ok, err := core.VerifyPassword(input.Password, hash)
 	if err != nil {
 		return nil, fmt.Errorf("gorta: verifying password: %w", err)
 	}
 	if !ok {
-		return nil, internals.ErrInvalidCredentials
+		return nil, core.ErrInvalidCredentials
 	}
-	storage, ok := p.storage.(core.Storage)
-	if !ok {
+
+	session, token, err := p.core.CreateSession(ctx, user.ID, meta)
+	if err != nil {
 		fmt.Printf("[gorta] error creating session: %v\n", err)
-		return nil, err
-	}
-	token, err := core.GenerateToken()
-	if err != nil {
-		fmt.Printf("[gorta] error generating token: %v\n", err)
-		return nil, err
-	}
-	session, err := storage.CreateSession(ctx, core.Session{
-		ID:        core.GenerateID(),
-		UserID:    user.ID,
-		Token:     token,
-		ExpiresAt: time.Now().Add(time.Hour * 24 * 30), // TODO: use configurations for session duration
-		IPAddress: meta.IPAddress,
-		UserAgent: meta.UserAgent,
-	})
-	if err != nil {
-		fmt.Printf("[gorta] error verifying password: %v\n", err)
 		return nil, err
 	}
 

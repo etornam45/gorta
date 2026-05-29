@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/etornam45/gorta/core"
-	"github.com/etornam45/gorta/internals"
 	"github.com/etornam45/gorta/plugins/emailpassword"
 	"github.com/etornam45/gorta/plugins/magiclink"
 )
@@ -175,35 +174,35 @@ func (a *SQLAdapter) RevokeAllSessions(ctx context.Context, userID string) error
 	return a.DeleteSessionsByUserID(ctx, userID)
 }
 
-func (a *SQLAdapter) CreateAccount(ctx context.Context, acc internals.Account) (*internals.Account, error) {
-	_, err := a.db.ExecContext(ctx,
-		`INSERT INTO accounts (id, user_id, provider, provider_account_id, access_token, refresh_token, expires_at, created_at)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		acc.ID, acc.UserID, acc.Provider, acc.ProviderAccountID,
-		acc.AccessToken, acc.RefreshToken, acc.ExpiresAt, acc.CreatedAt,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("sqladapter: creating account: %w", err)
-	}
-	return &acc, nil
-}
+// func (a *SQLAdapter) CreateAccount(ctx context.Context, acc core.Account) (*core.Account, error) {
+// 	_, err := a.db.ExecContext(ctx,
+// 		`INSERT INTO accounts (id, user_id, provider, provider_account_id, access_token, refresh_token, expires_at, created_at)
+// 		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+// 		acc.ID, acc.UserID, acc.Provider, acc.ProviderAccountID,
+// 		acc.AccessToken, acc.RefreshToken, acc.ExpiresAt, acc.CreatedAt,
+// 	)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("sqladapter: creating account: %w", err)
+// 	}
+// 	return &acc, nil
+// }
 
-func (a *SQLAdapter) FindAccountByProvider(ctx context.Context, provider, providerAccountID string) (*internals.Account, error) {
-	var acc internals.Account
-	err := a.db.QueryRowContext(ctx,
-		`SELECT id, user_id, provider, provider_account_id, access_token, refresh_token, expires_at, created_at
-		 FROM accounts WHERE provider = $1 AND provider_account_id = $2`,
-		provider, providerAccountID,
-	).Scan(&acc.ID, &acc.UserID, &acc.Provider, &acc.ProviderAccountID,
-		&acc.AccessToken, &acc.RefreshToken, &acc.ExpiresAt, &acc.CreatedAt)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, internals.ErrAccountNotFound
-	}
-	if err != nil {
-		return nil, fmt.Errorf("sqladapter: finding account: %w", err)
-	}
-	return &acc, nil
-}
+// func (a *SQLAdapter) FindAccountByProvider(ctx context.Context, provider, providerAccountID string) (*internals.Account, error) {
+// 	var acc internals.Account
+// 	err := a.db.QueryRowContext(ctx,
+// 		`SELECT id, user_id, provider, provider_account_id, access_token, refresh_token, expires_at, created_at
+// 		 FROM accounts WHERE provider = $1 AND provider_account_id = $2`,
+// 		provider, providerAccountID,
+// 	).Scan(&acc.ID, &acc.UserID, &acc.Provider, &acc.ProviderAccountID,
+// 		&acc.AccessToken, &acc.RefreshToken, &acc.ExpiresAt, &acc.CreatedAt)
+// 	if errors.Is(err, sql.ErrNoRows) {
+// 		return nil, internals.ErrAccountNotFound
+// 	}
+// 	if err != nil {
+// 		return nil, fmt.Errorf("sqladapter: finding account: %w", err)
+// 	}
+// 	return &acc, nil
+// }
 
 func (a *SQLAdapter) CreateVerification(ctx context.Context, v magiclink.Verification) (*magiclink.Verification, error) {
 	_, err := a.db.ExecContext(ctx,
@@ -224,7 +223,7 @@ func (a *SQLAdapter) FindVerificationByToken(ctx context.Context, token string) 
 		 FROM verifications WHERE token = $1`, token,
 	).Scan(&v.ID, &v.Identifier, &v.Token, &v.ExpiresAt, &v.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, internals.ErrVerificationNotFound
+		return nil, core.ErrVerificationNotFound
 	}
 	if err != nil {
 		return nil, fmt.Errorf("sqladapter: finding verification: %w", err)

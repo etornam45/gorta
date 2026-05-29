@@ -6,7 +6,7 @@ import (
 
 	"github.com/resend/resend-go/v2"
 
-	"github.com/etornam45/gorta/interfaces"
+	// "github.com/etornam45/gorta/core"
 )
 
 type Mailer struct {
@@ -20,7 +20,7 @@ type Config struct {
 	APIKey    string
 }
 
-func NewMailer(config Config) interfaces.Mailer {	
+func NewMailer(config Config) *Mailer {
 	return &Mailer{
 		client: resend.NewClient(config.APIKey),
 		config: config,

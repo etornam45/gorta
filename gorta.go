@@ -16,6 +16,7 @@ import (
 type Config struct {
 	Secret          string
 	SessionDuration time.Duration
+	BaseURL         string
 	CookieName      string
 	CookieDomain    string
 	SecureCookies   bool
@@ -63,6 +64,10 @@ func New(storage core.Storage, config Config, opts ...Option) (*Auth, error) {
 		opt(a)
 	}
 
+	for _, p := range a.plugins {
+		p.Init(a)
+	}
+
 	return a, nil
 }
 
@@ -92,7 +97,7 @@ func (a *Auth) Handler() http.Handler {
 	return mux
 }
 
-func (a *Auth) createSession(ctx context.Context, userID string, meta core.SessionMeta) (*core.Session, string, error) {
+func (a *Auth) CreateSession(ctx context.Context, userID string, meta core.SessionMeta) (*core.Session, string, error) {
 	token, err := core.GenerateToken()
 	if err != nil {
 		return nil, "", err
@@ -147,13 +152,6 @@ func (a *Auth) RevokeSession(ctx context.Context, token string) error {
 	return a.storage.DeleteSession(ctx, session.ID)
 }
 
-type contextKey string
-
-const (
-	sessionKey contextKey = "gorta_session"
-	userKey    contextKey = "gorta_user"
-)
-
 func (a *Auth) Middleware() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -166,14 +164,13 @@ func (a *Auth) Middleware() func(http.Handler) http.Handler {
 			session, err := a.ValidateSession(r.Context(), token)
 			if err != nil {
 				if errors.Is(err, core.ErrSessionExpired) || errors.Is(err, core.ErrSessionNotFound) {
-					a.clearSessionCookie(w)
+					a.ClearSessionCookie(w)
 				}
 				next.ServeHTTP(w, r)
 				return
 			}
 
-			ctx := context.WithValue(r.Context(), sessionKey, session)
-			ctx = context.WithValue(ctx, userKey, session.User)
+			ctx := core.ContextWithSession(r.Context(), session)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
@@ -210,13 +207,20 @@ func RequireAuth() func(http.Handler) http.Handler {
 }
 
 func GetSession(ctx context.Context) *core.Session {
-	s, _ := ctx.Value(sessionKey).(*core.Session)
-	return s
+	return core.SessionFromContext(ctx)
 }
 
 func GetUser(ctx context.Context) *core.User {
-	u, _ := ctx.Value(userKey).(*core.User)
-	return u
+	return core.UserFromContext(ctx)
+}
+
+func (a *Auth) Config() core.CoreConfig {
+	return core.CoreConfig{
+		SessionDuration: a.config.SessionDuration,
+		BaseURL:         a.config.BaseURL,
+		SecureCookies:   a.config.SecureCookies,
+		CookieName:      a.config.CookieName,
+	}
 }
 
 func (a *Auth) extractToken(r *http.Request) string {
@@ -243,7 +247,7 @@ func (a *Auth) SetSessionCookie(w http.ResponseWriter, token string) {
 	})
 }
 
-func (a *Auth) clearSessionCookie(w http.ResponseWriter) {
+func (a *Auth) ClearSessionCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     a.config.CookieName,
 		Value:    "",
@@ -279,7 +283,7 @@ func (a *Auth) handleSignOut(w http.ResponseWriter, r *http.Request) {
 			a.logger.Error("revoking session", "error", err)
 		}
 	}
-	a.clearSessionCookie(w)
+	a.ClearSessionCookie(w)
 	WriteJSON(w, http.StatusOK, map[string]string{"message": "signed out"})
 }
 

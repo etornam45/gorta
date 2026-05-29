@@ -6,20 +6,18 @@ import (
 	"net/http"
 
 	"github.com/etornam45/gorta/core"
-	"github.com/etornam45/gorta/interfaces"
 )
 
 type Config struct {
-	VerifyEmail bool
-	BaseURL string
+	VerifyEmail       bool
 	VerifyEmailDomain string
 }
 
 type Plugin struct {
-	// core    gorta.Auth
+	core    core.Core
 	storage core.Storage
 	creds   Storage
-	mailer  interfaces.Mailer // nil if no email features needed
+	mailer  Mailer // nil if no email features needed
 	config  Config
 }
 
@@ -31,9 +29,8 @@ type Plugin struct {
 //	// With email verification
 //	emailpassword.New(store, mailer, emailpassword.Config{
 //	    VerifyEmail: true,
-//	    BaseURL:     "https://myapp.com",
 //	})
-func New(storage core.Storage, creds Storage, mailer interfaces.Mailer, config Config) (*Plugin, error) {
+func New(storage core.Storage, creds Storage, mailer Mailer, config Config) (*Plugin, error) {
 
 	if config.VerifyEmail && mailer == nil {
 		return nil, fmt.Errorf("mailer is required for verify email")
@@ -48,6 +45,10 @@ func New(storage core.Storage, creds Storage, mailer interfaces.Mailer, config C
 }
 
 func (p *Plugin) Name() string { return "emailpassword" }
+
+func (p *Plugin) Init(c core.Core) {
+	p.core = c
+}
 
 func (p *Plugin) Routes() []core.Route {
 	return []core.Route{
@@ -85,7 +86,7 @@ func (p *Plugin) handleSignUp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if result.Token != "" {
-		// core.SetSessionCookie(w, result.Token)
+		p.core.SetSessionCookie(w, result.Token)
 	}
 
 	core.WriteJSON(w, http.StatusCreated, map[string]any{
@@ -110,7 +111,7 @@ func (p *Plugin) handleSignIn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// core.SetSessionCookie(w, result.Token)
+	p.core.SetSessionCookie(w, result.Token)
 	core.WriteJSON(w, http.StatusOK, map[string]any{
 		"user":    result.User,
 		"session": result.Session,
@@ -118,14 +119,14 @@ func (p *Plugin) handleSignIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func (p *Plugin) handleSignOut(w http.ResponseWriter, r *http.Request) {
-	token := core.ExtractToken(r, core.DefaultSessionCookie)
+	token := core.ExtractToken(r, p.core.Config().CookieName)
 	if token != "" {
-		if err := p.SignOut(r.Context(), token); err != nil {
+		if err := p.core.RevokeSession(r.Context(), token); err != nil {
 			fmt.Printf("[gorta] error signing out session: %v\n", err)
 		}
 	}
 
-	p.clearSessionCookie(w)
+	p.core.ClearSessionCookie(w)
 	core.WriteJSON(w, http.StatusOK, map[string]string{
 		"message": "signed out",
 	})
@@ -145,6 +146,10 @@ func (p *Plugin) handleGetSession(w http.ResponseWriter, r *http.Request) {
 		"user":    session.User,
 		"session": session,
 	})
+}
+
+func (p *Plugin) buildVerifyURL(token string) string {
+	return p.core.Config().BaseURL + "/auth/verify-email?token=" + token
 }
 
 func sessionMetaFromRequest(r *http.Request) core.SessionMeta {

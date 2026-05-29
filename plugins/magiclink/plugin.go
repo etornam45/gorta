@@ -6,16 +6,15 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/etornam45/gorta"
 	"github.com/etornam45/gorta/core"
 )
 
 type Config struct {
-	BaseURL    string
 	Expiration time.Duration
 }
 
 type Plugin struct {
+	core    core.Core
 	storage Storage
 	mailer  Mailer // nil if no email features needed
 	config  Config
@@ -27,6 +26,10 @@ func New(storage Storage, mailer Mailer, config Config) (*Plugin, error) {
 		mailer:  mailer,
 		config:  config,
 	}, nil
+}
+
+func (p *Plugin) Init(c core.Core) {
+	p.core = c
 }
 
 func (p *Plugin) Name() string { return "magiclink" }
@@ -69,13 +72,13 @@ func (p *Plugin) handleMagicLinkRequest(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	magicLink := fmt.Sprintf("%s/auth/magic-link/verify?token=%s", p.config.BaseURL, verification.Token)
+	magicLink := fmt.Sprintf("%s/auth/magic-link/verify?token=%s", p.core.Config().BaseURL, verification.Token)
 	if err := p.mailer.SendMagicLink(ctx, input.Email, magicLink); err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	gorta.WriteJSON(w, http.StatusOK, map[string]any{
+	core.WriteJSON(w, http.StatusOK, map[string]any{
 		"message": "Magic link sent to " + input.Email,
 	})
 }
@@ -112,28 +115,15 @@ func (p *Plugin) handleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionToken, err := core.GenerateToken()
-	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-
 	meta := core.SessionMetaFromRequest(r)
-	session, err := store.CreateSession(r.Context(), core.Session{
-		ID:        core.GenerateID(),
-		UserID:    user.ID,
-		Token:     sessionToken,
-		ExpiresAt: time.Now().Add(p.config.Expiration),
-		IPAddress: meta.IPAddress,
-		UserAgent: meta.UserAgent,
-		CreatedAt: time.Now(),
-	})
+	session, sessionToken, err := p.core.CreateSession(r.Context(), user.ID, meta)
 	if err != nil {
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 
-	gorta.WriteJSON(w, http.StatusOK, map[string]any{
+	p.core.SetSessionCookie(w, sessionToken)
+	core.WriteJSON(w, http.StatusOK, map[string]any{
 		"user":    user,
 		"session": session,
 	})

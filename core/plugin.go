@@ -1,10 +1,34 @@
 package core
 
-import "net/http"
+import (
+	"context"
+	"net/http"
+	"time"
+)
 
 type Plugin interface {
-	Name()   string
+	Name() string
+	Init(c Core)
 	Routes() []Route
+}
+
+type Core interface {
+	CreateSession(ctx context.Context, userID string, meta SessionMeta) (*Session, string, error)
+	RevokeSession(ctx context.Context, token string) error
+	ValidateSession(ctx context.Context, token string) (*Session, error)
+
+	SetSessionCookie(w http.ResponseWriter, token string)
+	ClearSessionCookie(w http.ResponseWriter)
+
+	RequireAuth() func(http.Handler) http.Handler
+	Config() CoreConfig
+}
+
+type CoreConfig struct {
+	SessionDuration time.Duration
+	BaseURL         string
+	SecureCookies   bool
+	CookieName      string
 }
 
 type RouteMethod string

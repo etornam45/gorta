@@ -20,11 +20,9 @@ storage := sqladapter.New(db)
 ```go
 emailpasswordPlugin, err := emailpassword.New(storage, storage, mailer, emailpassword.Config{
 	VerifyEmail: true,
-	BaseURL:     "http://localhost:8080",
 })
 
-magiclinkPlugin, err := magiclink.New(storage, mailer.(magiclink.Mailer), magiclink.Config{
-	BaseURL:    "http://localhost:8080",
+magiclinkPlugin, err := magiclink.New(storage, mailer, magiclink.Config{
 	Expiration: 1 * time.Hour,
 })
 ```
