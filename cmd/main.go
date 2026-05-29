@@ -15,6 +15,8 @@ import (
 	sqladapter "github.com/etornam45/gorta/adapters/sql"
 	emailpassword "github.com/etornam45/gorta/plugins/emailpassword"
 	"github.com/etornam45/gorta/plugins/magiclink"
+	"github.com/etornam45/gorta/plugins/oauth"
+	"github.com/etornam45/gorta/plugins/oauth/providers"
 )
 
 func main() {
@@ -25,20 +27,23 @@ func main() {
 	defer db.Close()
 	log.Println("Database connected")
 	runMigrations(db, "adapters/sql/schema.sql")
-
-	config := gorta.Config{
-		Secret:          "asdfadflajsdkfjalksdjfkljaskdjfldsafsadfadsfsd",
-		SessionDuration: 1 * time.Hour,
-		BaseURL:         "http://localhost:8080",
-		SecureCookies:   false,
-		CookieDomain:    "localhost",
-		CookieName:      "gorta_session",
+	cfg, err := LoadConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	gortaConfig := gorta.Config{
+		Secret:          cfg.Secret,
+		SessionDuration: cfg.SessionDuration,
+		BaseURL:         cfg.BaseURL,
+		SecureCookies:   cfg.SecureCookies,
+		CookieDomain:    cfg.CookieDomain,
+		CookieName:      cfg.CookieName,
 	}
 
 	mailer := resend.NewMailer(resend.Config{
-		APIKey:    "re_YHhyanrD_K7W2SWxqLVGfKcw6qaAKZiDQ",
-		FromEmail: "onboarding@resend.dev",
-		FromName:  "Gorta",
+		APIKey:    cfg.ResendAPIKey,
+		FromEmail: cfg.FromEmail,
+		FromName:  cfg.FromName,
 	})
 
 	storage := sqladapter.New(db)
@@ -56,11 +61,28 @@ func main() {
 		log.Fatal(err)
 	}
 
+	google := providers.NewGoogleProvider(providers.GoogleConfig{
+		ClientID:     cfg.GoogleClientID,
+		ClientSecret: cfg.GoogleClientSecret,
+	})
+	github := providers.NewGitHubProvider(providers.GitHubConfig{
+		ClientID:     cfg.GitHubClientID,
+		ClientSecret: cfg.GitHubClientSecret,
+	})
+	oauthPlugin, err := oauth.New(storage, storage, nil, oauth.Config{
+		Providers:       []oauth.Provider{google, github},
+		SuccessRedirect: cfg.BaseURL + "/protected",
+	})
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	a, err := gorta.New(
 		storage,
-		config,
+		gortaConfig,
 		gorta.WithPlugin(emailpasswordPlugin),
 		gorta.WithPlugin(magiclinkPlugin),
+		gorta.WithPlugin(oauthPlugin),
 	)
 	if err != nil {
 		log.Fatal(err)
