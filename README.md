@@ -2,9 +2,6 @@
   <img src="./gorta.png" width="100" />
 </p>
 
-
-![Gorta](./gorta.png 'Gorta')
-
 **`[Gorta]`** is a minimal, adapter-based authentication library for Go.
 
 #### Manifesto
