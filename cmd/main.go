@@ -73,8 +73,12 @@ func main() {
 		ClientID:     os.Getenv("GITHUB_CLIENT_ID"),
 		ClientSecret: os.Getenv("GITHUB_CLIENT_SECRET"),
 	})
+	yahoo := providers.NewYahooProvider(providers.YahooConfig{
+		ClientID: os.Getenv("YAHOO_CLIENT_ID"),
+		ClientSecret: os.Getenv("YAHOO_CLIENT_SECRET"),
+	})
 	oauthPlugin, err := oauth.New(storage, storage, nil, oauth.Config{
-		Providers:       []oauth.Provider{google, github},
+		Providers:       []oauth.Provider{google, github, yahoo},
 		SuccessRedirect: os.Getenv("BASE_URL") + "/protected",
 	})
 	if err != nil {
