@@ -20,20 +20,29 @@ const pillars = [
   {
     icon: Database,
     title: 'You own the data',
-    description:
-      'Implement core.Storage against your database, ORM, and schema. Gorta never opens a connection or runs migrations for you.',
+    element:
+        <p>Implement core.Storage against your database, ORM, and schema</p>,
   },
   {
     icon: Plug,
     title: 'Composable plugins',
-    description:
-      'Enable email/password, magic links, OAuth, and more. Each plugin registers HTTP routes and optional storage interfaces.',
+    element: <ul className="flex flex-col gap-2 text-sm leading-relaxed text-fd-muted-foreground">
+      <li className="p-1 border border-fd-border bg-fd-background flex items-center gap-2">
+        <Mail className="size-4 text-fd-primary" aria-hidden />
+         Email & password</li>
+      <li className="p-1 border border-fd-border bg-fd-background flex items-center gap-2">
+        <Link2 className="size-4 text-fd-primary" aria-hidden />
+        Magic links</li>
+      <li className="p-1 border border-fd-border bg-fd-background flex items-center gap-2">
+        <KeyRound className="size-4 text-fd-primary" aria-hidden />
+        Google & GitHub OAuth</li>  
+    </ul>,
   },
   {
     icon: Cookie,
     title: 'Sessions & cookies',
-    description:
-      'Password hashing, secure cookies, session validation, and RequireAuth middleware — without locking you into a framework.',
+    element:
+      <p>Password hashing, secure cookies, session validation, and RequireAuth middleware</p>,
   },
 ] as const;
 
@@ -91,13 +100,12 @@ export default async function HomePage() {
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-fd-muted-foreground">
             A minimal, adapter-based auth library. Gorta handles password hashing,
-            sessions, OAuth flows, and secure cookies — you implement storage against
-            your own database.
+            sessions, OAuth flows, and secure cookies
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Link
               href={docsRoute}
-              className="inline-flex items-center gap-2 rounded-lg bg-fd-primary px-5 py-2.5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
+              className="inline-flex items-center gap-2 bg-fd-primary px-5 py-2.5 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
             >
               Get started
               <ArrowRight className="size-4" aria-hidden />
@@ -106,7 +114,7 @@ export default async function HomePage() {
               href={githubUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-fd-border bg-fd-card px-5 py-2.5 text-sm font-medium text-fd-foreground transition-colors hover:bg-fd-accent"
+              className="inline-flex items-center gap-2 border border-fd-border bg-fd-card px-5 py-2.5 text-sm font-medium text-fd-foreground transition-colors hover:bg-fd-accent"
             >
               View on GitHub
             </a>
@@ -117,25 +125,25 @@ export default async function HomePage() {
 
       {/* Pillars */}
       <section className="border-y border-fd-border bg-fd-card/50 px-6 py-16">
-        <div className="mx-auto max-w-5xl">
+        <div className="mx-auto max-w-3xl">
           <h2 className="text-center text-2xl font-semibold text-fd-foreground">
             Built for control, not ceremony
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-center text-fd-muted-foreground">
             Standard library HTTP, explicit configuration, no ORM requirement.
           </p>
-          <ul className="mt-12 grid gap-8 md:grid-cols-3">
-            {pillars.map(({ icon: Icon, title, description }) => (
+          <ul className="mt-12 grid md:grid-cols-3">
+            {pillars.map(({ icon: Icon, title, element }) => (
               <li
                 key={title}
-                className="rounded-xl border border-fd-border bg-fd-background p-6"
+                className="border border-fd-border bg-fd-background p-6"
               >
-                <div className="mb-4 flex size-10 items-center justify-center rounded-lg bg-fd-primary/10 text-fd-primary">
-                  <Icon className="size-5" aria-hidden />
+                <div className="mb-4 flex size-8 items-center justify-center bg-fd-diff-add text-fd-primary">
+                  <Icon className="size-4 text-fd-primary" aria-hidden />
                 </div>
                 <h3 className="font-semibold text-fd-foreground">{title}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-fd-muted-foreground">
-                  {description}
+                  {element}
                 </p>
               </li>
             ))}
@@ -180,7 +188,7 @@ export default async function HomePage() {
 
       {/* Auth methods */}
       <section className="border-t border-fd-border bg-fd-card/50 px-6 py-16">
-        <div className="mx-auto max-w-4xl">
+        <div className="mx-auto max-w-3xl">
           <h2 className="text-center text-2xl font-semibold text-fd-foreground">
             Auth methods
           </h2>
@@ -194,7 +202,7 @@ export default async function HomePage() {
                 {availableAuth.map(({ icon: Icon, label }) => (
                   <li
                     key={label}
-                    className="flex items-center gap-3 rounded-lg border border-fd-border bg-fd-background px-4 py-3 text-sm"
+                    className="flex items-center gap-3 border border-fd-border bg-fd-background px-4 py-3 text-sm"
                   >
                     <Icon className="size-4 shrink-0 text-fd-primary" aria-hidden />
                     {label}
@@ -230,11 +238,11 @@ export default async function HomePage() {
           </h2>
           <p className="mt-3 text-fd-muted-foreground">
             Follow the getting started guide, then copy patterns from{' '}
-            <code className="rounded bg-fd-muted px-1.5 py-0.5 text-sm">cmd/main.go</code>.
+            <code className="bg-fd-muted px-1.5 py-0.5 text-sm">cmd/main.go</code>.
           </p>
           <Link
             href={docsRoute}
-            className="mt-8 inline-flex items-center gap-2 rounded-lg bg-fd-primary px-6 py-3 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
+            className="mt-8 inline-flex items-center gap-2 bg-fd-primary px-6 py-3 text-sm font-medium text-fd-primary-foreground transition-opacity hover:opacity-90"
           >
             Read the docs
             <ArrowRight className="size-4" aria-hidden />
