@@ -103,6 +103,7 @@ func (p *Plugin) handleMagicLinkVerify(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// FIXME: use the actual core storage instead of type casting
 	store, ok := p.storage.(core.Storage)
 	if !ok {
 		http.Error(w, "internal error", http.StatusInternalServerError)

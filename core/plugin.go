@@ -8,7 +8,7 @@ import (
 
 type Plugin interface {
 	Name() string
-	Init(c Core)
+	Init(c Core) // FIXME: Core is not a pointer, so we need to pass a pointer to the core
 	Routes() []Route
 }
 

@@ -26,16 +26,20 @@ type Auth struct {
 	storage core.Storage
 	plugins []core.Plugin
 	config  Config
+	routes  map[string]http.Handler
 	logger  *slog.Logger
 }
 
 // New creates a new Auth instance with the given core storage and plugins.
 //
 //	store := sqlstore.New(db)
-//	auth, err := gorta.New(store,
+//	auth, err := gorta.New(store, config,
 //	    gorta.WithPlugin(emailpassword.New(store, mailer)),
 //	    gorta.WithPlugin(magiclink.New(store, mailer)),
 //	)
+//	mux := http.NewServeMux()
+//	mux.Handle("/auth/", a.Handler())
+//	http.ListenAndServe(":8080", a.Middleware()(mux))
 func New(storage core.Storage, config Config, opts ...Option) (*Auth, error) {
 	if storage == nil {
 		return nil, errors.New("gorta: storage is required")
@@ -57,6 +61,7 @@ func New(storage core.Storage, config Config, opts ...Option) (*Auth, error) {
 		storage: storage,
 		config:  config,
 		logger:  config.Logger,
+		routes:  make(map[string]http.Handler),
 	}
 
 	for _, opt := range opts {
@@ -75,6 +80,10 @@ type Option func(*Auth)
 func WithPlugin(p core.Plugin) Option {
 	return func(a *Auth) {
 		a.plugins = append(a.plugins, p)
+
+		for _, r := range p.Routes() {
+			a.routes[string(r.Method)+" "+r.Path] = r.Handler
+		}
 	}
 }
 
@@ -85,13 +94,18 @@ func (a *Auth) Handler() http.Handler {
 	mux.HandleFunc("POST /sign-out", a.handleSignOut)
 	mux.HandleFunc("GET /me", a.RequireAuth()(http.HandlerFunc(a.handleGetMe)).ServeHTTP)
 
+	// Print the routes
+	a.logger.Info("\n\n[core]\n")
+	a.logger.Info("GET /session")
+	a.logger.Info("POST /sign-out")
+	a.logger.Info("GET /me")
+
+
 	// FIXME: Consider using a more efficient way to register routes
-	for _, p := range a.plugins {
-		for _, r := range p.Routes() {
-			pattern := string(r.Method) + " " + r.Path
-			mux.Handle(pattern, r.Handler)
-			a.logger.Info("registered plugin route", "method", r.Method, "path", r.Path)
-		}
+	a.logger.Info("\n\n[plugins]\n")
+	for path, handler := range a.routes {
+		mux.Handle(path, handler)
+		a.logger.Info(path)
 	}
 
 	return mux
@@ -190,7 +204,7 @@ func (a *Auth) RequireAuth() func(http.Handler) http.Handler {
 		})
 	}
 }
-
+// TODO: REMOVE THIS
 func RequireAuth() func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

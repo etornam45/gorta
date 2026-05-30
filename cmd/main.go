@@ -43,21 +43,13 @@ func main() {
 		log.Fatal("COOKIE_SECURE: ", err)
 	}
 
-	gortaConfig := gorta.Config{
-		Secret:          os.Getenv("SECRET"),
-		SessionDuration: sessionDuration,
-		BaseURL:         os.Getenv("BASE_URL"),
-		SecureCookies:   secureCookies,
-		CookieDomain:    os.Getenv("COOKIE_DOMAIN"),
-		CookieName:      os.Getenv("COOKIE_NAME"),
-	}
-
+	
 	mailer := resend.NewMailer(resend.Config{
 		APIKey:    os.Getenv("RESEND_API_KEY"),
 		FromEmail: os.Getenv("FROM_EMAIL"),
 		FromName:  os.Getenv("FROM_NAME"),
 	})
-
+	
 	storage := sqladapter.New(db)
 	emailpasswordPlugin, err := emailpassword.New(storage, storage, mailer, emailpassword.Config{
 		VerifyEmail: false,
@@ -65,14 +57,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	magiclinkPlugin, err := magiclink.New(storage, mailer, magiclink.Config{
 		Expiration: 1 * time.Hour,
 	})
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
 	google := providers.NewGoogleProvider(providers.GoogleConfig{
 		ClientID:     os.Getenv("GOOGLE_CLIENT_ID"),
 		ClientSecret: os.Getenv("GOOGLE_CLIENT_SECRET"),
@@ -88,7 +80,15 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	
+	gortaConfig := gorta.Config{
+		Secret:          os.Getenv("SECRET"),
+		SessionDuration: sessionDuration,
+		BaseURL:         os.Getenv("BASE_URL"),
+		SecureCookies:   secureCookies,
+		CookieDomain:    os.Getenv("COOKIE_DOMAIN"),
+		CookieName:      os.Getenv("COOKIE_NAME"),
+	}
 	a, err := gorta.New(
 		storage,
 		gortaConfig,
@@ -116,14 +116,17 @@ func main() {
 }
 
 func ProtectedHandler(w http.ResponseWriter, r *http.Request) {
-	user := gorta.GetUser(r.Context())
-	if user == nil {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+	session := gorta.GetSession(r.Context())
+	if session == nil {
+		core.WriteJSON(w, http.StatusUnauthorized, map[string]string{
+			"error":   "UNAUTHENTICATED",
+			"message": "no active session",
+		})
 		return
 	}
-	core.WriteJSON(w, http.StatusOK, map[string]string{
-		"message": "Hello, " + user.Name + "!",
-		"user":    user.Email,
+	core.WriteJSON(w, http.StatusOK, map[string]any{
+		"message": "Hello, " + session.User.Name + "!",
+		"session": *session,
 	})
 }
 
