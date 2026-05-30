@@ -1,13 +1,16 @@
 ---
-title: Hello World
-description: Your first document
+title: API Reference
+description: HTTP routes exposed by Gorta core and plugins.
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+HTTP API documentation is in progress. Routes are mounted on your chosen prefix (typically `/auth`).
 
-## What is Next?
+## Core routes
 
-<Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
-</Cards>
+| Method | Path | Description |
+| ------ | ---- | ----------- |
+| `GET` | `/session` | Current session (if any) |
+| `POST` | `/sign-out` | Revoke session and clear cookie |
+| `GET` | `/me` | Authenticated user (requires session) |
+
+Plugin routes (sign-up, sign-in, magic link, OAuth) are registered alongside these. See the [getting started](/docs) guide and plugin source under `plugins/` on GitHub.

@@ -1,13 +1,65 @@
 ---
 title: Getting Started
-description: Welcome to Gorta
+description: Install Gorta and wire up auth in a Go HTTP server.
 ---
 
-Welcome to the docs! You can start writing documents in `/content/docs`.
+Gorta is a minimal, adapter-based authentication library for Go. You bring the database; Gorta handles sessions, cookies, and plugin HTTP routes.
 
-## What is Next?
+## Install
+
+```bash
+go get github.com/etornam45/gorta
+```
+
+## Prerequisites
+
+- Go 1.22+ (stdlib `http.ServeMux` route patterns)
+- A SQL database (or your own `core.Storage` implementation)
+- A signing secret of at least 32 characters
+
+## Quick start
+
+```go
+storage := sqladapter.New(db)
+
+emailPlugin, err := emailpassword.New(storage, storage, mailer, emailpassword.Config{
+    VerifyEmail: true,
+})
+
+auth, err := gorta.New(storage, gorta.Config{
+    Secret:  os.Getenv("SECRET"),
+    BaseURL: os.Getenv("BASE_URL"),
+}, gorta.WithPlugin(emailPlugin))
+
+mux := http.NewServeMux()
+mux.Handle("/auth/", http.StripPrefix("/auth", auth.Handler()))
+mux.Handle("/dashboard", auth.RequireAuth()(http.HandlerFunc(dashboard)))
+
+http.ListenAndServe(":8080", auth.Middleware()(mux))
+```
+
+Auth routes live under `/auth` (for example `POST /auth/sign-in`). Session middleware loads the cookie on every request; `RequireAuth` guards private handlers.
+
+## Environment variables
+
+| Variable | Description |
+| -------- | ----------- |
+| `SECRET` | Session signing secret (32+ characters) |
+| `BASE_URL` | Public URL of your API (OAuth redirects, email links) |
+| `SESSION_DURATION` | Optional session lifetime (e.g. `168h`) |
+| `COOKIE_SECURE` | Set `true` in production (HTTPS only) |
+| `COOKIE_DOMAIN` | Optional cookie domain |
+| `COOKIE_NAME` | Optional cookie name (default `gorta_session`) |
+
+## Example project
+
+A full working server with email/password, magic links, and OAuth is in the repository:
 
 <Cards>
-  <Card title="Learn more about Next.js" href="https://nextjs.org/docs" />
-  <Card title="Learn more about Fumadocs" href="https://fumadocs.dev" />
+  <Card title="cmd/main.go on GitHub" href="https://github.com/etornam45/gorta/blob/main/cmd/main.go" />
+  <Card title="SQL adapter schema" href="https://github.com/etornam45/gorta/blob/main/adapters/sql/schema.sql" />
 </Cards>
+
+## Next steps
+
+Plugin guides, storage adapters, and HTTP API reference are coming soon. For now, explore the [repository README](https://github.com/etornam45/gorta#readme) and plugin packages under `plugins/`.
