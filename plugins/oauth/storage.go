@@ -33,7 +33,8 @@ type Account struct {
 }
 
 type OAuthState struct {
-	Token     string
-	Provider  ProviderName
-	ExpiresAt time.Time
+	Token        string
+	Provider     ProviderName
+	ExpiresAt    time.Time
+	CodeVerifier string
 }

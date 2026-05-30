@@ -36,6 +36,16 @@ func (g *GoogleProvider) Name() string { return string(oauth.Google) }
 
 func (g *GoogleProvider) Config() *oauth2.Config { return &g.config }
 
+func (g *GoogleProvider) AuthorizeOptions(_ *oauth.OAuthState) ([]oauth2.AuthCodeOption, error) {
+	return []oauth2.AuthCodeOption{
+		oauth2.SetAuthURLParam("access_type", "offline"),
+	}, nil
+}
+
+func (g *GoogleProvider) ExchangeOptions(_ *oauth.OAuthState) []oauth2.AuthCodeOption {
+	return nil
+}
+
 func (g *GoogleProvider) GetUser(ctx context.Context, token *oauth2.Token) (*oauth.UserInfo, error) {
 	client := g.config.Client(ctx, token)
 	resp, err := client.Get("https://www.googleapis.com/oauth2/v2/userinfo")

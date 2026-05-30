@@ -87,22 +87,28 @@ func (p *Plugin) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := p.state.Save(r.Context(), OAuthState{
+	oauthState := OAuthState{
 		Token:     stateToken,
 		Provider:  ProviderName(provider.Name()),
 		ExpiresAt: time.Now().Add(defaultStateTTL),
-	}); err != nil {
-		core.WriteError(w, err)
-		return
 	}
 
 	cfg := p.providerConfig(provider)
 	opts := []oauth2.AuthCodeOption{}
-	if provider.Name() == string(Google) {
-		// Google requires the access_type=offline parameter to get a refresh token
-		//TODO:  Move this logic to the provider level so each provider can handle it differently
-		opts = append(opts, oauth2.SetAuthURLParam("access_type", "offline"))
+	if authOpts, ok := provider.(AuthOptionsProvider); ok {
+		providerOpts, err := authOpts.AuthorizeOptions(&oauthState)
+		if err != nil {
+			core.WriteError(w, err)
+			return
+		}
+		opts = append(opts, providerOpts...)
 	}
+
+	if err := p.state.Save(r.Context(), oauthState); err != nil {
+		core.WriteError(w, err)
+		return
+	}
+
 	url := cfg.AuthCodeURL(stateToken, opts...)
 	http.Redirect(w, r, url, http.StatusFound)
 }
@@ -163,7 +169,11 @@ func (p *Plugin) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cfg := p.providerConfig(provider)
-	token, err := cfg.Exchange(r.Context(), code)
+	exchangeOpts := []oauth2.AuthCodeOption{}
+	if authOpts, ok := provider.(AuthOptionsProvider); ok {
+		exchangeOpts = append(exchangeOpts, authOpts.ExchangeOptions(savedState)...)
+	}
+	token, err := cfg.Exchange(r.Context(), code, exchangeOpts...)
 	if err != nil {
 		core.WriteJSON(w, http.StatusBadGateway, map[string]string{
 			"error":   "TOKEN_EXCHANGE_FAILED",
